@@ -1,0 +1,3973 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Próximo episodio de una serie</title>
+  <style>
+    :root {
+      --bg: #0f1020;
+      --panel: rgba(255, 255, 255, 0.08);
+      --panel-strong: rgba(255, 255, 255, 0.14);
+      --text: #f6f4ff;
+      --muted: #b9b4d6;
+      --accent: #ff77c8;
+      --accent-2: #7c7dff;
+      --good: #72f2b2;
+      --warn: #ffd166;
+      --bad: #ff7a90;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255, 119, 200, 0.34), transparent 34%),
+        radial-gradient(circle at top right, rgba(124, 125, 255, 0.35), transparent 32%),
+        linear-gradient(135deg, #0f1020, #17182c 50%, #101224);
+      padding: 32px 18px;
+    }
+
+    .shell {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin: 28px auto 26px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--muted);
+      font-size: 0.92rem;
+      backdrop-filter: blur(18px);
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(2.1rem, 7vw, 5.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.07em;
+    }
+
+    .gradient-text {
+      background: linear-gradient(90deg, #fff, #ffc2ec, #aaaaff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.18rem);
+      line-height: 1.7;
+    }
+
+    .search-panel {
+      position: sticky;
+      top: 14px;
+      z-index: 5;
+      margin: 30px auto;
+      padding: 14px;
+      border-radius: var(--radius);
+      background: rgba(10, 10, 24, 0.72);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(22px);
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+    }
+
+    input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      border-radius: 18px;
+      padding: 18px 18px;
+      font-size: 1rem;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    input::placeholder {
+      color: rgba(246, 244, 255, 0.55);
+    }
+
+    .search-wrap {
+      position: relative;
+      min-width: 0;
+    }
+
+    .suggestions {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 10px);
+      display: none;
+      max-height: min(420px, 64vh);
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 20px;
+      background: rgba(15, 16, 32, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(22px);
+    }
+
+    .suggestions.visible {
+      display: grid;
+      gap: 8px;
+    }
+
+    .suggestion-item {
+      display: grid;
+      grid-template-columns: 46px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 9px;
+      border: 0;
+      border-radius: 16px;
+      color: var(--text);
+      background: transparent;
+      box-shadow: none;
+      text-align: left;
+      font: inherit;
+    }
+
+    .suggestion-item:hover,
+    .suggestion-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      transform: none;
+      filter: none;
+    }
+
+    .suggestion-poster {
+      width: 46px;
+      aspect-ratio: 2/3;
+      border-radius: 10px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,0.42);
+      background: rgba(255,255,255,0.10);
+      font-size: 0.64rem;
+      text-align: center;
+    }
+
+    .suggestion-poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .suggestion-title {
+      font-weight: 850;
+      margin-bottom: 3px;
+      line-height: 1.15;
+    }
+
+    .suggestion-meta {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .suggestion-chip {
+      justify-self: end;
+      color: rgba(246,244,255,0.75);
+      background: rgba(255,255,255,0.09);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
+    .suggestion-empty {
+      padding: 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      border-radius: 18px;
+      padding: 0 24px;
+      color: #151527;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ff9ddb, #9fa0ff);
+      box-shadow: 0 14px 34px rgba(255, 119, 200, 0.24);
+      transition: transform 0.18s ease, filter 0.18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+      transform: none;
+    }
+
+    .hint {
+      margin: 10px 4px 0;
+      color: rgba(246, 244, 255, 0.58);
+      font-size: 0.9rem;
+    }
+
+
+
+    .imdb-link {
+      display: inline-block;
+      margin-top: 6px;
+      color: rgba(255, 194, 236, 0.92);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .imdb-link:hover {
+      text-decoration: underline;
+    }
+
+    .feed-panel {
+      margin: 10px auto 26px;
+      padding: 18px;
+      border-radius: var(--radius);
+      background: rgba(10, 10, 24, 0.56);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .feed-title h2 {
+      margin: 0;
+      font-size: clamp(1.35rem, 4vw, 2.05rem);
+      letter-spacing: -0.045em;
+    }
+
+    .feed-title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.94rem;
+    }
+
+    .feed-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: thin;
+    }
+
+    .feed-tab {
+      flex: 0 0 auto;
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: rgba(246,244,255,0.82);
+      background: rgba(255,255,255,0.08);
+      box-shadow: none;
+      font-weight: 800;
+      font-size: 0.88rem;
+    }
+
+    .feed-tab:hover,
+    .feed-tab.active {
+      color: #151527;
+      background: linear-gradient(135deg, #ff9ddb, #9fa0ff);
+      transform: translateY(-1px);
+      filter: none;
+    }
+
+    .feed-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(142px, 1fr));
+      gap: 14px;
+    }
+
+    .feed-card {
+      min-width: 0;
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.075);
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .feed-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255,119,200,0.44);
+      background: rgba(255,255,255,0.12);
+    }
+
+    .feed-poster {
+      width: 100%;
+      aspect-ratio: 2/3;
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,0.46);
+      background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05));
+      font-size: 0.88rem;
+      text-align: center;
+      padding: 10px;
+    }
+
+    .feed-poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .feed-info {
+      padding: 11px 11px 13px;
+    }
+
+    .feed-name {
+      font-weight: 900;
+      line-height: 1.18;
+      margin-bottom: 6px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .feed-meta {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.42;
+    }
+
+    .feed-loading,
+    .feed-empty {
+      padding: 26px;
+      text-align: center;
+      color: var(--muted);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.09);
+      grid-column: 1 / -1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 18px 0;
+    }
+
+    .panel-title h2 {
+      margin: 0;
+      font-size: 1rem;
+      color: rgba(246, 244, 255, 0.86);
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .results {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .show-card {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 14px;
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .show-card:hover,
+    .show-card.active {
+      background: var(--panel-strong);
+      transform: translateY(-1px);
+      border-color: rgba(255, 119, 200, 0.42);
+    }
+
+    .poster,
+    .hero-poster {
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+      display: grid;
+      place-items: center;
+      color: rgba(255,255,255,0.45);
+      text-align: center;
+      font-size: 0.78rem;
+      padding: 6px;
+    }
+
+    .poster {
+      width: 70px;
+      aspect-ratio: 2/3;
+      border-radius: 13px;
+    }
+
+    .poster img,
+    .hero-poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: inherit;
+    }
+
+    .show-name {
+      margin: 2px 0 6px;
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.55;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      background: rgba(255,255,255,0.1);
+    }
+
+    .status.running { color: var(--good); }
+    .status.ended { color: var(--bad); }
+    .status.other { color: var(--warn); }
+
+    .details {
+      padding: 22px;
+      min-height: 480px;
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      min-height: 440px;
+      text-align: center;
+      color: var(--muted);
+      padding: 24px;
+    }
+
+    .empty-state strong {
+      display: block;
+      color: var(--text);
+      font-size: 1.35rem;
+      margin-bottom: 10px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .hero-poster {
+      border-radius: 22px;
+      width: 160px;
+      aspect-ratio: 2/3;
+    }
+
+    .show-title {
+      margin: 0 0 8px;
+      font-size: clamp(1.7rem, 4vw, 3.1rem);
+      letter-spacing: -0.045em;
+      line-height: 1.02;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 16px;
+    }
+
+
+    .tags .status {
+      margin-top: 0;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .tag {
+      font-size: 0.82rem;
+      color: rgba(246,244,255,0.82);
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+
+
+    .trailer-section {
+      display: none;
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.065);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .trailer-section.active {
+      display: block;
+    }
+
+    .trailer-section h4 {
+      margin: 0 0 12px;
+      font-size: 1.04rem;
+    }
+
+    .trailer-source {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+
+
+    .trailer-thumb-card {
+      position: relative;
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.32);
+      text-decoration: none;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .trailer-thumb-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: brightness(0.72);
+    }
+
+    .trailer-play-overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.42));
+    }
+
+    .trailer-play-button {
+      display: inline-grid;
+      place-items: center;
+      width: 74px;
+      height: 74px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.92);
+      color: #151527;
+      font-size: 2rem;
+      font-weight: 900;
+      box-shadow: 0 18px 42px rgba(0,0,0,0.34);
+      margin-bottom: 12px;
+    }
+
+    .trailer-play-text {
+      font-weight: 900;
+      font-size: 1rem;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.55);
+    }
+
+    .embedded-trailer {
+      margin-top: 18px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.28);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .embedded-trailer-frame {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 0;
+      display: block;
+      background: rgba(0,0,0,0.32);
+    }
+
+    .embedded-trailer-placeholder {
+      min-height: 210px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      line-height: 1.55;
+      background:
+        radial-gradient(circle at top left, rgba(255,119,200,0.16), transparent 34%),
+        rgba(0,0,0,0.22);
+    }
+
+    .platform-section,
+    .news-section {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.065);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .platform-section h4,
+    .news-section h4 {
+      margin: 0 0 12px;
+      font-size: 1.04rem;
+    }
+
+    .platform-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .platform-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 11px;
+      border-radius: 999px;
+      color: rgba(246,244,255,0.92);
+      text-decoration: none;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 0.86rem;
+      font-weight: 850;
+    }
+
+    .platform-chip img {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.9);
+    }
+
+    .news-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .news-card {
+      display: block;
+      padding: 12px;
+      border-radius: 16px;
+      color: rgba(246,244,255,0.9);
+      text-decoration: none;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .news-card strong {
+      display: block;
+      line-height: 1.32;
+      margin-bottom: 5px;
+    }
+
+    .news-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .resource-action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .resource-action-row a,
+    .resource-action-row button {
+      width: fit-content;
+      border: 0;
+      cursor: pointer;
+      color: #151527;
+      text-decoration: none;
+      font-weight: 900;
+      font-size: 0.84rem;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff9ddb, #9fa0ff);
+      box-shadow: none;
+    }
+
+    .resource-muted {
+      color: rgba(246,244,255,0.58);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .resources-box {
+      margin-top: 22px;
+      padding: 22px;
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(255,119,200,0.11), rgba(114,242,178,0.10)),
+        rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+    }
+
+    .resources-title {
+      margin: 0 0 8px;
+      font-size: clamp(1.25rem, 3vw, 1.85rem);
+      letter-spacing: -0.035em;
+    }
+
+    .resources-subtitle {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
+    }
+
+    .resources-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .resource-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 126px;
+      padding: 15px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .resource-card strong {
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .resource-card span {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.42;
+    }
+
+
+    .resource-card button {
+      width: fit-content;
+      margin-top: auto;
+      border: 0;
+      cursor: pointer;
+      color: #151527;
+      text-decoration: none;
+      font-weight: 900;
+      font-size: 0.84rem;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff9ddb, #9fa0ff);
+      box-shadow: none;
+    }
+
+    .resource-viewer {
+      display: none;
+      margin-top: 18px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.26);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .resource-viewer.active {
+      display: block;
+    }
+
+    .resource-viewer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.075);
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .resource-viewer-title {
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .resource-viewer-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .resource-viewer-actions a,
+    .resource-viewer-actions button {
+      border: 0;
+      cursor: pointer;
+      color: rgba(246,244,255,0.9);
+      text-decoration: none;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      box-shadow: none;
+    }
+
+    .resource-frame-wrap {
+      position: relative;
+      width: 100%;
+      height: min(72vh, 620px);
+      background: rgba(0,0,0,0.22);
+    }
+
+    .resource-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: white;
+    }
+
+    .resource-viewer-note {
+      padding: 11px 14px;
+      color: rgba(246,244,255,0.62);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      background: rgba(255,255,255,0.045);
+    }
+
+    .resource-card a {
+      width: fit-content;
+      margin-top: auto;
+      color: #151527;
+      text-decoration: none;
+      font-weight: 900;
+      font-size: 0.84rem;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff9ddb, #9fa0ff);
+    }
+
+    .resource-note {
+      margin-top: 14px;
+      color: rgba(246,244,255,0.56);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .next-box {
+      margin-top: 22px;
+      padding: 22px;
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(255,119,200,0.18), rgba(124,125,255,0.16)),
+        rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+
+    .next-label {
+      color: rgba(246,244,255,0.7);
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+
+    .episode-title {
+      font-size: clamp(1.45rem, 4vw, 2.35rem);
+      margin: 0 0 12px;
+      letter-spacing: -0.045em;
+      line-height: 1.08;
+    }
+
+    .original-title {
+      margin-top: -4px;
+      margin-bottom: 10px;
+      color: rgba(246,244,255,0.58);
+      font-size: 0.86rem;
+    }
+
+    .countdown {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(72px, 1fr));
+      gap: 10px;
+      margin: 18px 0;
+    }
+
+    .time-card {
+      padding: 13px 10px;
+      text-align: center;
+      border-radius: 16px;
+      background: rgba(0,0,0,0.22);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .time-card strong {
+      display: block;
+      font-size: 1.55rem;
+      line-height: 1;
+    }
+
+    .time-card span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .info {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.07);
+    }
+
+    .info small {
+      display: block;
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-size: 0.78rem;
+    }
+
+    .info b {
+      overflow-wrap: anywhere;
+    }
+
+    .summary {
+      margin-top: 20px;
+      color: rgba(246,244,255,0.78);
+      line-height: 1.7;
+    }
+
+    .translation-note {
+      margin-top: 10px;
+      color: rgba(246,244,255,0.52);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .link {
+      color: var(--text);
+      text-decoration: none;
+      padding: 10px 13px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.09);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.9rem;
+    }
+
+    .notice {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 16px;
+      color: rgba(246,244,255,0.78);
+      background: rgba(255, 209, 102, 0.12);
+      border: 1px solid rgba(255, 209, 102, 0.18);
+      line-height: 1.6;
+    }
+
+    .notice.good {
+      background: rgba(114, 242, 178, 0.10);
+      border-color: rgba(114, 242, 178, 0.20);
+    }
+
+    .error {
+      background: rgba(255, 122, 144, 0.12);
+      border-color: rgba(255, 122, 144, 0.22);
+    }
+
+
+    .estimate-box {
+      margin-top: 22px;
+      padding: 22px;
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(114,242,178,0.13), rgba(124,125,255,0.15)),
+        rgba(255,255,255,0.08);
+      border: 1px solid rgba(114,242,178,0.20);
+    }
+
+
+    .projection-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .projection-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .projection-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .projection-date {
+      color: rgba(246,244,255,0.72);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .projection-year {
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: var(--good);
+      background: rgba(114,242,178,0.12);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .confidence {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      background: rgba(255,255,255,0.10);
+    }
+
+    .confidence.high { color: var(--good); }
+    .confidence.medium { color: var(--warn); }
+    .confidence.low { color: var(--bad); }
+
+    .suggestion-note {
+      padding: 13px 16px;
+      color: rgba(246,244,255,0.62);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin: 28px auto 0;
+      text-align: center;
+      color: rgba(246,244,255,0.48);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    footer a {
+      color: rgba(255, 194, 236, 0.88);
+    }
+
+    .loader {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255,255,255,0.25);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: -4px;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 880px) {
+      body {
+        padding: 22px 12px;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .feed-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .feed-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .resources-grid {
+        grid-template-columns: 1fr;
+      }
+
+
+
+      .search-panel {
+        position: static;
+      }
+
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        padding: 16px 18px;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-poster {
+        width: 150px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .countdown,
+      .info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .suggestion-item {
+        grid-template-columns: 42px 1fr;
+      }
+
+      .suggestion-chip {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="badge">📺 Buscador de próximos episodios</div>
+      <h1><span class="gradient-text">¿Cuándo sale el siguiente episodio?</span></h1>
+      <p class="subtitle">
+        Escribe el nombre de una serie. La app buscará el próximo episodio, una fecha oficial de temporada o una estimación basada en estrenos anteriores.
+      </p>
+    </header>
+
+    <section class="search-panel">
+      <form id="searchForm">
+        <div class="search-wrap">
+          <input id="query" type="search" placeholder="Ejemplo: One Piece, Doctor Who, House of the Dragon..." autocomplete="off" aria-autocomplete="list" aria-controls="suggestions" aria-expanded="false" required />
+          <div class="suggestions" id="suggestions" role="listbox" aria-label="Sugerencias de series"></div>
+        </div>
+        <button id="searchButton" type="submit">Buscar</button>
+      </form>
+    </section>
+
+
+    <section class="feed-panel" aria-labelledby="feedTitle">
+      <div class="feed-header">
+        <div class="feed-title">
+          <h2 id="feedTitle">Explorar series ✨</h2>
+          <p>Elige una categoría y toca una serie activa. El feed busca más opciones para llenar la cuadrícula sin mostrar series finalizadas.</p>
+        </div>
+
+        <div class="feed-tabs" role="tablist" aria-label="Categorías del feed">
+          <button class="feed-tab active" type="button" data-feed-category="normal">Series normales</button>
+          <button class="feed-tab" type="button" data-feed-category="animated">Animadas</button>
+          <button class="feed-tab" type="button" data-feed-category="anime">Anime</button>
+        </div>
+      </div>
+
+      <div class="feed-grid" id="feedGrid">
+        <div class="feed-loading">Cargando recomendaciones...</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-title">
+          <h2>Resultados</h2>
+          <span class="count" id="resultCount">0 encontrados</span>
+        </div>
+        <div class="results" id="results"></div>
+      </aside>
+
+      <section class="panel">
+        <div class="details" id="details">
+          <div class="empty-state">
+            <div>
+              <strong>Busca una serie para empezar 🌙</strong>
+              <p>Cuando selecciones una serie, aquí aparecerá el próximo episodio, estreno de temporada o aviso correspondiente.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <footer>
+      Datos de series por <a href="https://www.tvmaze.com/" target="_blank" rel="noreferrer">TVmaze</a>.
+      La información depende de que TVmaze tenga registrado el episodio o la temporada.
+    </footer>
+  </main>
+
+  <script>
+    const API_BASE = "https://api.tvmaze.com";
+    const MYMEMORY_API = "https://api.mymemory.translated.net/get";
+    const GOOGLE_TRANSLATE_API = "https://translate.googleapis.com/translate_a/single";
+    const MEXICO_TIME_ZONE = "America/Mexico_City";
+
+    const form = document.querySelector("#searchForm");
+    const queryInput = document.querySelector("#query");
+    const searchButton = document.querySelector("#searchButton");
+    const resultsEl = document.querySelector("#results");
+    const resultCountEl = document.querySelector("#resultCount");
+    const detailsEl = document.querySelector("#details");
+    const feedGrid = document.querySelector("#feedGrid");
+    const feedTabs = [...document.querySelectorAll(".feed-tab")];
+
+
+    let activeShowId = null;
+    let countdownTimer = null;
+    let requestVersion = 0;
+    let autocompleteTimer = null;
+    let autocompleteAbort = null;
+    let suggestionIndex = -1;
+    let lastSuggestions = [];
+
+    const translationCache = new Map();
+    const imageCache = new Map();
+    const feedCache = new Map();
+
+    const STATUS_ES = {
+      "Running": "En emisión",
+      "Ended": "Finalizada",
+      "To Be Determined": "Por determinar",
+      "In Development": "En desarrollo"
+    };
+
+    const TYPE_ES = {
+      "Scripted": "Guionizada",
+      "Animation": "Animación",
+      "Reality": "Reality show",
+      "Documentary": "Documental",
+      "News": "Noticias",
+      "Talk Show": "Programa de entrevistas",
+      "Sports": "Deportes",
+      "Variety": "Variedades",
+      "Game Show": "Concurso",
+      "Panel Show": "Panel",
+      "Award Show": "Premiación"
+    };
+
+    const DAY_ES = {
+      "Monday": "lunes",
+      "Tuesday": "martes",
+      "Wednesday": "miércoles",
+      "Thursday": "jueves",
+      "Friday": "viernes",
+      "Saturday": "sábado",
+      "Sunday": "domingo"
+    };
+
+    const GENRE_ES = {
+      "Action": "Acción",
+      "Adult": "Adulto",
+      "Adventure": "Aventura",
+      "Anime": "Anime",
+      "Children": "Infantil",
+      "Comedy": "Comedia",
+      "Crime": "Crimen",
+      "DIY": "Hazlo tú mismo",
+      "Drama": "Drama",
+      "Espionage": "Espionaje",
+      "Family": "Familiar",
+      "Fantasy": "Fantasía",
+      "Food": "Comida",
+      "History": "Historia",
+      "Horror": "Terror",
+      "Legal": "Legal",
+      "Medical": "Médico",
+      "Music": "Música",
+      "Mystery": "Misterio",
+      "Nature": "Naturaleza",
+      "Romance": "Romance",
+      "Science-Fiction": "Ciencia ficción",
+      "Sports": "Deportes",
+      "Supernatural": "Sobrenatural",
+      "Thriller": "Suspenso",
+      "Travel": "Viajes",
+      "War": "Guerra",
+      "Western": "Western"
+    };
+
+    const LANGUAGE_ES = {
+      "English": "inglés",
+      "Spanish": "español",
+      "Japanese": "japonés",
+      "Korean": "coreano",
+      "Chinese": "chino",
+      "French": "francés",
+      "German": "alemán",
+      "Italian": "italiano",
+      "Portuguese": "portugués",
+      "Russian": "ruso",
+      "Hindi": "hindi",
+      "Arabic": "árabe",
+      "Turkish": "turco",
+      "Dutch": "neerlandés",
+      "Swedish": "sueco",
+      "Danish": "danés",
+      "Norwegian": "noruego"
+    };
+
+    const COUNTRY_ES = {
+      "United States": "Estados Unidos",
+      "United Kingdom": "Reino Unido",
+      "Japan": "Japón",
+      "South Korea": "Corea del Sur",
+      "China": "China",
+      "Taiwan": "Taiwán",
+      "Thailand": "Tailandia",
+      "India": "India",
+      "Canada": "Canadá",
+      "Mexico": "México",
+      "Spain": "España",
+      "France": "Francia",
+      "Germany": "Alemania",
+      "Italy": "Italia",
+      "Portugal": "Portugal",
+      "Brazil": "Brasil",
+      "Argentina": "Argentina",
+      "Chile": "Chile",
+      "Colombia": "Colombia",
+      "Peru": "Perú",
+      "Australia": "Australia",
+      "New Zealand": "Nueva Zelanda",
+      "Norway": "Noruega",
+      "Sweden": "Suecia",
+      "Denmark": "Dinamarca",
+      "Finland": "Finlandia",
+      "Netherlands": "Países Bajos",
+      "Belgium": "Bélgica",
+      "Switzerland": "Suiza",
+      "Austria": "Austria",
+      "Ireland": "Irlanda",
+      "Iceland": "Islandia",
+      "Turkey": "Turquía",
+      "Russia": "Rusia",
+      "Poland": "Polonia",
+      "Czech Republic": "República Checa",
+      "Czechia": "Chequia",
+      "Hungary": "Hungría",
+      "Romania": "Rumania",
+      "Greece": "Grecia",
+      "Israel": "Israel",
+      "South Africa": "Sudáfrica",
+      "Egypt": "Egipto",
+      "Nigeria": "Nigeria"
+    };
+
+    const INCOMPLETE_WORD_EXPANSIONS = {
+      "adv": ["adventure", "adventures"],
+      "adve": ["adventure", "adventures"],
+      "adven": ["adventure", "adventures"],
+      "adventu": ["adventure", "adventures"],
+      "super": ["superman", "supergirl", "supernatural"],
+      "drag": ["dragon", "dragons"],
+      "dem": ["demon", "demons"],
+      "hero": ["hero", "heroes", "heroic"],
+      "academ": ["academy", "academia"],
+      "witch": ["witch", "witcher"],
+      "vamp": ["vampire", "vampires"],
+      "zomb": ["zombie", "zombies"]
+    };
+
+    const COMMON_TITLE_SHORTCUTS = [
+      "my adventures with superman",
+      "house of the dragon",
+      "doctor who",
+      "one piece",
+      "solo leveling",
+      "jujutsu kaisen",
+      "demon slayer",
+      "my hero academia",
+      "spy x family",
+      "chainsaw man",
+      "dandadan"
+    ];
+
+    const FEED_TARGET_COUNT = 12;
+
+    const INVIDIOUS_ENDPOINTS = [
+      "https://yewtu.be/api/v1/search",
+      "https://inv.nadeko.net/api/v1/search",
+      "https://invidious.nerdvpn.de/api/v1/search",
+      "https://iv.ggtyler.dev/api/v1/search"
+    ];
+
+    const PIPED_ENDPOINTS = [
+      "https://piped.video/api/search",
+      "https://pipedapi.kavin.rocks/search",
+      "https://pipedapi.adminforge.de/search"
+    ];
+
+    const TRAILER_OVERRIDES = {
+      "x men 97": {
+        "2": [
+          {
+            videoId: "Y7drTJYOj14",
+            title: "X-MEN '97 Season 2 Trailer Latin Spanish (2026)",
+            label: "Español latino"
+          },
+          {
+            videoId: "mfUtseK27pc",
+            title: "Marvel Animation's X-Men '97 Season 2 | Official Trailer",
+            label: "Oficial"
+          }
+        ],
+        default: [
+          {
+            videoId: "mfUtseK27pc",
+            title: "Marvel Animation's X-Men '97 Season 2 | Official Trailer",
+            label: "Oficial"
+          }
+        ]
+      }
+    };
+
+    const PLATFORM_PROVIDERS = [
+      { key: "netflix", label: "Netflix", domain: "netflix.com", url: "https://www.netflix.com/mx/" },
+      { key: "max", label: "Max", domain: "max.com", url: "https://www.max.com/mx/es" },
+      { key: "hbo", label: "Max", domain: "max.com", url: "https://www.max.com/mx/es" },
+      { key: "prime video", label: "Prime Video", domain: "primevideo.com", url: "https://www.primevideo.com/" },
+      { key: "amazon", label: "Prime Video", domain: "primevideo.com", url: "https://www.primevideo.com/" },
+      { key: "disney+", label: "Disney+", domain: "disneyplus.com", url: "https://www.disneyplus.com/es-mx" },
+      { key: "disney plus", label: "Disney+", domain: "disneyplus.com", url: "https://www.disneyplus.com/es-mx" },
+      { key: "hulu", label: "Hulu", domain: "hulu.com", url: "https://www.hulu.com/" },
+      { key: "apple tv+", label: "Apple TV+", domain: "tv.apple.com", url: "https://tv.apple.com/mx" },
+      { key: "apple tv", label: "Apple TV+", domain: "tv.apple.com", url: "https://tv.apple.com/mx" },
+      { key: "paramount+", label: "Paramount+", domain: "paramountplus.com", url: "https://www.paramountplus.com/mx/" },
+      { key: "paramount plus", label: "Paramount+", domain: "paramountplus.com", url: "https://www.paramountplus.com/mx/" },
+      { key: "peacock", label: "Peacock", domain: "peacocktv.com", url: "https://www.peacocktv.com/" },
+      { key: "crunchyroll", label: "Crunchyroll", domain: "crunchyroll.com", url: "https://www.crunchyroll.com/es/" },
+      { key: "hidive", label: "HIDIVE", domain: "hidive.com", url: "https://www.hidive.com/" },
+      { key: "adult swim", label: "Adult Swim", domain: "adultswim.com", url: "https://www.adultswim.com/" },
+      { key: "cartoon network", label: "Cartoon Network", domain: "cartoonnetwork.com", url: "https://www.cartoonnetwork.com/" },
+      { key: "fx", label: "FX", domain: "fxnetworks.com", url: "https://www.fxnetworks.com/" },
+      { key: "amc", label: "AMC+", domain: "amcplus.com", url: "https://www.amcplus.com/" },
+      { key: "starz", label: "Starz", domain: "starz.com", url: "https://www.starz.com/" },
+      { key: "showtime", label: "Paramount+", domain: "paramountplus.com", url: "https://www.paramountplus.com/mx/" },
+      { key: "youtube", label: "YouTube", domain: "youtube.com", url: "https://www.youtube.com/" },
+      { key: "at-x", label: "AT-X", domain: "at-x.com", url: "https://www.at-x.com/" }
+    ];
+
+    const FEED_CATEGORIES = {
+      normal: {
+        label: "Series normales",
+        seeds: [
+          "House of the Dragon",
+          "The Last of Us",
+          "The Boys",
+          "Fallout",
+          "Severance",
+          "Wednesday",
+          "Doctor Who",
+          "The Bear",
+          "The Witcher",
+          "Andor",
+          "Loki",
+          "Gen V",
+          "Silo",
+          "Foundation",
+          "The Sandman",
+          "Percy Jackson and the Olympians",
+          "The Night Agent",
+          "Reacher",
+          "The Diplomat",
+          "Shrinking",
+          "The Recruit",
+          "Yellowjackets",
+          "Slow Horses",
+          "Poker Face",
+          "Peacemaker",
+          "Ahsoka",
+          "Daredevil: Born Again",
+          "Star Wars: Skeleton Crew",
+          "The Walking Dead: Daryl Dixon",
+          "Interview with the Vampire",
+          "The White Lotus",
+          "Euphoria"
+        ]
+      },
+      animated: {
+        label: "Series animadas",
+        seeds: [
+          "Invincible",
+          "My Adventures with Superman",
+          "Rick and Morty",
+          "The Simpsons",
+          "Bob's Burgers",
+          "Harley Quinn",
+          "Hazbin Hotel",
+          "Adventure Time: Fionna and Cake",
+          "Arcane",
+          "Blue Eye Samurai",
+          "Castlevania: Nocturne",
+          "X-Men '97",
+          "Futurama",
+          "Family Guy",
+          "Solar Opposites",
+          "American Dad!",
+          "Krapopolis",
+          "Grimsburg",
+          "Velma",
+          "Star Trek: Lower Decks",
+          "Primal",
+          "Creature Commandos",
+          "Murder Drones",
+          "Helluva Boss",
+          "The Legend of Vox Machina",
+          "The Dragon Prince",
+          "Gremlins: Secrets of the Mogwai",
+          "Young Justice",
+          "Big Mouth",
+          "Disenchantment"
+        ]
+      },
+      anime: {
+        label: "Anime",
+        seeds: [
+          "One Piece",
+          "Solo Leveling",
+          "Dandadan",
+          "Jujutsu Kaisen",
+          "Demon Slayer",
+          "My Hero Academia",
+          "Classroom of the Elite",
+          "Spy x Family",
+          "Chainsaw Man",
+          "Frieren: Beyond Journey's End",
+          "The Apothecary Diaries",
+          "Oshi no Ko",
+          "Blue Lock",
+          "Kaiju No. 8",
+          "Kingdom",
+          "Dr. Stone",
+          "Re:ZERO -Starting Life in Another World-",
+          "Mushoku Tensei: Jobless Reincarnation",
+          "That Time I Got Reincarnated as a Slime",
+          "The Rising of the Shield Hero",
+          "Tokyo Revengers",
+          "Vinland Saga",
+          "Hell's Paradise",
+          "Black Clover",
+          "Fire Force",
+          "Tower of God",
+          "The Eminence in Shadow",
+          "Alya Sometimes Hides Her Feelings in Russian",
+          "Sakamoto Days",
+          "Dragon Ball Daima",
+          "Boruto: Naruto Next Generations",
+          "Wind Breaker"
+        ]
+      }
+    };
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      if (lastSuggestions.length && suggestionIndex >= 0) {
+        const chosen = lastSuggestions[suggestionIndex];
+        queryInput.value = chosen.name;
+        hideAutocomplete();
+        await selectShow(chosen.id);
+        return;
+      }
+
+      await searchShows(query);
+    });
+
+    queryInput.addEventListener("input", () => {
+      const query = queryInput.value.trim();
+
+      if (!query) {
+        hideAutocomplete();
+        return;
+      }
+
+      clearTimeout(autocompleteTimer);
+      autocompleteTimer = setTimeout(() => runAutocomplete(query), 280);
+    });
+
+    queryInput.addEventListener("keydown", async (event) => {
+      const items = [...document.querySelectorAll(".autocomplete-item")];
+
+      if (!items.length) return;
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        suggestionIndex = (suggestionIndex + 1) % items.length;
+        updateSuggestionHighlight(items);
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        suggestionIndex = (suggestionIndex - 1 + items.length) % items.length;
+        updateSuggestionHighlight(items);
+      }
+
+      if (event.key === "Enter" && suggestionIndex >= 0) {
+        event.preventDefault();
+        const chosen = lastSuggestions[suggestionIndex];
+        queryInput.value = chosen.name;
+        hideAutocomplete();
+        await selectShow(chosen.id);
+      }
+
+      if (event.key === "Escape") {
+        hideAutocomplete();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".search-panel")) {
+        hideAutocomplete();
+      }
+    });
+
+    window.addEventListener("beforeunload", clearTimer);
+
+    feedTabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        loadFeedCategory(tab.dataset.feedCategory);
+      });
+    });
+
+    loadFeedCategory("normal");
+
+
+
+    async function loadFeedCategory(categoryKey) {
+      const category = FEED_CATEGORIES[categoryKey];
+      if (!category || !feedGrid) return;
+
+      feedTabs.forEach(tab => {
+        const isActive = tab.dataset.feedCategory === categoryKey;
+        tab.classList.toggle("active", isActive);
+        tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      if (feedCache.has(categoryKey)) {
+        renderFeed(feedCache.get(categoryKey));
+        return;
+      }
+
+      feedGrid.innerHTML = `<div class="feed-loading">Cargando ${escapeHTML(category.label.toLowerCase())}...</div>`;
+
+      try {
+        const shows = await fetchFeedShows(category.seeds);
+        feedCache.set(categoryKey, shows);
+        renderFeed(shows);
+      } catch (error) {
+        console.warn("No se pudo cargar el feed:", error);
+        feedGrid.innerHTML = `<div class="feed-empty">No pude cargar esta categoría ahora. Intenta de nuevo en unos segundos.</div>`;
+      }
+    }
+
+    async function fetchFeedShows(seedTitles) {
+      const activeShows = [];
+      const seenIds = new Set();
+
+      for (let index = 0; index < seedTitles.length; index += 8) {
+        const batch = seedTitles.slice(index, index + 8);
+        const settled = await Promise.allSettled(batch.map(title => fetchFeedShow(title)));
+
+        for (const result of settled) {
+          if (result.status !== "fulfilled" || !result.value) continue;
+
+          const show = result.value;
+          if (!show.id || seenIds.has(show.id) || !isShowActiveForFeed(show)) continue;
+
+          seenIds.add(show.id);
+          activeShows.push(show);
+        }
+
+        if (activeShows.length >= FEED_TARGET_COUNT) break;
+      }
+
+      return activeShows.slice(0, FEED_TARGET_COUNT);
+    }
+
+    function isShowActiveForFeed(show) {
+      const status = String(show?.status || "").toLowerCase();
+      return status !== "ended";
+    }
+
+    async function fetchFeedShow(title) {
+      try {
+        return await fetchJSON(`${API_BASE}/singlesearch/shows?q=${encodeURIComponent(title)}`);
+      } catch (error) {
+        const fallback = await fetchJSON(`${API_BASE}/search/shows?q=${encodeURIComponent(title)}`);
+        return fallback?.[0]?.show || null;
+      }
+    }
+
+    function renderFeed(shows) {
+      if (!feedGrid) return;
+
+      if (!shows.length) {
+        feedGrid.innerHTML = `<div class="feed-empty">No encontré series activas para mostrar en esta categoría.</div>`;
+        return;
+      }
+
+      feedGrid.innerHTML = shows.map(feedCardHTML).join("");
+
+      document.querySelectorAll(".feed-card").forEach(card => {
+        const showId = Number(card.dataset.showId);
+        card.addEventListener("click", async () => {
+          await selectShow(showId);
+          document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+
+        card.addEventListener("keydown", async event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            await selectShow(showId);
+            document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+    }
+
+    function feedCardHTML(show) {
+      const image = getShowImage(show)
+        ? `<img src="${escapeAttr(getShowImage(show))}" alt="Póster de ${escapeAttr(show.name)}">`
+        : "Sin imagen";
+      const year = show.premiered ? show.premiered.slice(0, 4) : "Año desconocido";
+      const genres = (show.genres || []).slice(0, 2).map(translateGenre).join(", ") || "Sin géneros";
+      const status = translateStatus(show.status);
+
+      return `
+        <article class="feed-card" data-show-id="${show.id}" tabindex="0" role="button" aria-label="Ver ${escapeAttr(show.name)}">
+          <div class="feed-poster">${image}</div>
+          <div class="feed-info">
+            <div class="feed-name">${escapeHTML(show.name)}</div>
+            <div class="feed-meta">${escapeHTML(year)} · ${escapeHTML(status)}</div>
+            <div class="feed-meta">${escapeHTML(genres)}</div>
+          </div>
+        </article>
+      `;
+    }
+
+    async function runAutocomplete(query) {
+      const cleanQuery = query.trim();
+
+      if (cleanQuery.length < 2) {
+        hideAutocomplete();
+        return;
+      }
+
+      if (autocompleteAbort) autocompleteAbort.abort();
+      autocompleteAbort = new AbortController();
+
+      const panel = getAutocompletePanel();
+      panel.innerHTML = `<div class="suggestion-note">Buscando coincidencias...</div>`;
+      panel.style.display = "block";
+
+      try {
+        const shows = await smartSearchShows(cleanQuery, autocompleteAbort.signal, true);
+        lastSuggestions = shows.slice(0, 6);
+        suggestionIndex = -1;
+
+        if (!lastSuggestions.length) {
+          panel.innerHTML = `<div class="suggestion-note">Sigue escribiendo un poco más. Todavía no hay una coincidencia clara.</div>`;
+          return;
+        }
+
+        panel.innerHTML = lastSuggestions.map((show, index) => suggestionHTML(show, index)).join("");
+
+        document.querySelectorAll(".autocomplete-item").forEach(item => {
+          const index = Number(item.dataset.index);
+          item.addEventListener("mousedown", async event => {
+            event.preventDefault();
+            const chosen = lastSuggestions[index];
+            queryInput.value = chosen.name;
+            hideAutocomplete();
+            await selectShow(chosen.id);
+          });
+        });
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.warn("Autocompletado falló:", error);
+        panel.innerHTML = `<div class="suggestion-note">No pude actualizar sugerencias ahora. Puedes presionar Buscar.</div>`;
+      }
+    }
+
+    function getAutocompletePanel() {
+      let panel = document.querySelector("#autocompletePanel");
+
+      if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "autocompletePanel";
+        panel.style.display = "none";
+        panel.style.marginTop = "14px";
+        panel.style.borderRadius = "20px";
+        panel.style.overflow = "hidden";
+        panel.style.background = "rgba(12, 12, 28, 0.92)";
+        panel.style.border = "1px solid rgba(255,255,255,0.13)";
+        panel.style.boxShadow = "0 20px 55px rgba(0,0,0,0.35)";
+        form.insertAdjacentElement("afterend", panel);
+      }
+
+      return panel;
+    }
+
+    function suggestionHTML(show, index) {
+      const year = show.premiered ? show.premiered.slice(0, 4) : "Año desconocido";
+      const genres = (show.genres || []).slice(0, 2).map(translateGenre).join(", ") || "Sin géneros";
+      const image = getShowImage(show)
+        ? `<img src="${escapeAttr(getShowImage(show))}" alt="Póster de ${escapeAttr(show.name)}">`
+        : "Sin imagen";
+
+      return `
+        <article class="show-card autocomplete-item" data-index="${index}" role="button" tabindex="0" style="border-radius:0; border-left:0; border-right:0;">
+          <div class="poster">${image}</div>
+          <div>
+            <div class="show-name">${escapeHTML(show.name)}</div>
+            <div class="meta">${escapeHTML(year)} · ${escapeHTML(translateLanguage(show.language))} · ${escapeHTML(genres)}</div>
+            <span class="status ${statusToClass(show.status)}">${escapeHTML(translateStatus(show.status))}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function updateSuggestionHighlight(items) {
+      items.forEach((item, index) => {
+        item.classList.toggle("active", index === suggestionIndex);
+      });
+
+      if (items[suggestionIndex]) {
+        items[suggestionIndex].scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    function hideAutocomplete() {
+      const panel = document.querySelector("#autocompletePanel");
+      if (panel) {
+        panel.style.display = "none";
+        panel.innerHTML = "";
+      }
+      suggestionIndex = -1;
+      lastSuggestions = [];
+    }
+
+    async function searchShows(query) {
+      const version = ++requestVersion;
+      setLoading(true);
+      clearTimer();
+      hideAutocomplete();
+      activeShowId = null;
+      resultCountEl.textContent = "Buscando...";
+      resultsEl.innerHTML = "";
+      detailsEl.innerHTML = loadingHTML("Buscando series parecidas...");
+
+      try {
+        const shows = await smartSearchShows(query, null, false);
+        if (version !== requestVersion) return;
+
+        resultCountEl.textContent = `${shows.length} ${shows.length === 1 ? "encontrada" : "encontradas"}`;
+
+        if (!shows.length) {
+          detailsEl.innerHTML = emptyHTML("No encontré esa serie", "Prueba con el título original completo o una parte más específica del nombre.");
+          return;
+        }
+
+        renderResults(shows.slice(0, 10));
+        await selectShow(shows[0].id);
+      } catch (error) {
+        if (version !== requestVersion) return;
+        showError(error);
+      } finally {
+        if (version === requestVersion) {
+          setLoading(false);
+        }
+      }
+    }
+
+    async function smartSearchShows(query, signal = null, strictAutocomplete = false) {
+      const searchQueries = buildSearchQueries(query);
+      const all = [];
+
+      for (const q of searchQueries) {
+        try {
+          const data = await fetchJSON(`${API_BASE}/search/shows?q=${encodeURIComponent(q)}`, signal);
+          for (const item of data) {
+            if (item?.show) {
+              all.push({ ...item.show, tvmazeScore: item.score || 0, sourceQuery: q });
+            }
+          }
+        } catch (error) {
+          if (error.name === "AbortError") throw error;
+          console.warn("Consulta ignorada:", q, error);
+        }
+      }
+
+      const deduped = dedupeShows(all);
+      const scored = deduped.map(show => ({
+        ...show,
+        localScore: scoreShowMatch(show, query)
+      }));
+
+      const filtered = scored
+        .filter(show => strictAutocomplete ? show.localScore >= 46 : show.localScore >= 25)
+        .sort((a, b) => b.localScore - a.localScore || b.tvmazeScore - a.tvmazeScore);
+
+      return filtered;
+    }
+
+    function buildSearchQueries(query) {
+      const normalized = normalizeText(query);
+      const tokens = normalized.split(" ").filter(Boolean);
+      const queries = new Set();
+
+      if (query.trim()) queries.add(query.trim());
+
+      for (const shortcut of COMMON_TITLE_SHORTCUTS) {
+        if (shortcut.startsWith(normalized) || fuzzyPrefix(shortcut, normalized)) {
+          queries.add(shortcut);
+        }
+      }
+
+      if (tokens.length) {
+        queries.add(tokens.join(" "));
+
+        const last = tokens[tokens.length - 1];
+        const previous = tokens.slice(0, -1).join(" ");
+
+        const expansions = INCOMPLETE_WORD_EXPANSIONS[last] || [];
+        for (const expansion of expansions) {
+          queries.add((previous ? previous + " " : "") + expansion);
+        }
+
+        if (tokens.length >= 2) {
+          queries.add(tokens.slice(0, 2).join(" "));
+          queries.add(tokens.slice(0, -1).join(" "));
+          queries.add(tokens[0] + " " + last);
+        }
+
+        if (last.length >= 4) queries.add(last);
+      }
+
+      return [...queries]
+        .map(q => q.trim())
+        .filter(q => q.length >= 2)
+        .slice(0, 8);
+    }
+
+    function scoreShowMatch(show, query) {
+      const q = normalizeText(query);
+      const title = normalizeText(show.name || "");
+      const tokens = q.split(" ").filter(Boolean);
+      const titleTokens = title.split(" ").filter(Boolean);
+
+      if (!q || !title) return 0;
+
+      let score = 0;
+
+      if (title === q) score += 120;
+      if (title.startsWith(q)) score += 95;
+      if (title.includes(q)) score += 70;
+
+      const missingImportantTokens = [];
+
+      for (const token of tokens) {
+        const expanded = INCOMPLETE_WORD_EXPANSIONS[token] || [];
+        const tokenMatches = titleTokens.some(titleToken =>
+          titleToken === token ||
+          titleToken.startsWith(token) ||
+          token.startsWith(titleToken) ||
+          expanded.some(exp => titleToken === exp || titleToken.startsWith(exp) || exp.startsWith(titleToken)) ||
+          levenshteinDistance(titleToken, token) <= (token.length >= 5 ? 2 : 1)
+        );
+
+        if (tokenMatches) {
+          score += token.length <= 2 ? 14 : 24;
+        } else if (token.length >= 3) {
+          missingImportantTokens.push(token);
+        }
+      }
+
+      if (tokens.length >= 2 && missingImportantTokens.length) {
+        score -= 42 * missingImportantTokens.length;
+      }
+
+      if (tokens[0] && titleTokens[0]) {
+        if (titleTokens[0].startsWith(tokens[0]) || tokens[0].startsWith(titleTokens[0])) {
+          score += 30;
+        } else {
+          score -= 24;
+        }
+      }
+
+      if (show.image?.medium || show.image?.original) score += 8;
+      if (show.status === "Running") score += 4;
+
+      return score;
+    }
+
+    function fuzzyPrefix(title, query) {
+      const t = normalizeText(title);
+      const q = normalizeText(query);
+      if (!q) return false;
+      if (t.startsWith(q)) return true;
+
+      const titleTokens = t.split(" ");
+      const queryTokens = q.split(" ");
+
+      return queryTokens.every((token, index) => {
+        const titleToken = titleTokens[index] || "";
+        return titleToken.startsWith(token) || levenshteinDistance(titleToken.slice(0, token.length), token) <= 1;
+      });
+    }
+
+    function dedupeShows(shows) {
+      const map = new Map();
+
+      for (const show of shows) {
+        if (!show?.id) continue;
+
+        const previous = map.get(show.id);
+        if (!previous || (show.tvmazeScore || 0) > (previous.tvmazeScore || 0)) {
+          map.set(show.id, show);
+        }
+      }
+
+      return [...map.values()];
+    }
+
+    function renderResults(shows) {
+      resultsEl.innerHTML = shows.map(show => {
+        const year = show.premiered ? show.premiered.slice(0, 4) : "Año desconocido";
+        const statusClass = statusToClass(show.status);
+        const image = getShowImage(show)
+          ? `<img src="${escapeAttr(getShowImage(show))}" alt="Póster de ${escapeAttr(show.name)}">`
+          : "Sin imagen";
+
+        const genres = (show.genres || []).slice(0, 3).map(translateGenre).join(", ") || "Sin géneros";
+        const language = translateLanguage(show.language);
+
+        return `
+          <article class="show-card" data-show-id="${show.id}" tabindex="0" role="button" aria-label="Ver ${escapeAttr(show.name)}">
+            <div class="poster">${image}</div>
+            <div>
+              <div class="show-name">${escapeHTML(show.name)}</div>
+              <div class="meta">${escapeHTML(year)} · ${escapeHTML(language)}</div>
+              <div class="meta">${escapeHTML(genres)}</div>
+              <span class="status ${statusClass}">${escapeHTML(translateStatus(show.status))}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      document.querySelectorAll(".show-card").forEach(card => {
+        const showId = Number(card.dataset.showId);
+        card.addEventListener("click", () => selectShow(showId));
+        card.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectShow(showId);
+          }
+        });
+      });
+    }
+
+    async function selectShow(showId) {
+      const version = ++requestVersion;
+      activeShowId = showId;
+      clearTimer();
+      hideAutocomplete();
+
+      document.querySelectorAll(".show-card").forEach(card => {
+        card.classList.toggle("active", Number(card.dataset.showId) === showId);
+      });
+
+      detailsEl.innerHTML = loadingHTML("Consultando episodios y temporadas...");
+
+      try {
+        const show = await fetchJSON(`${API_BASE}/shows/${showId}?embed=nextepisode`);
+        if (version !== requestVersion || activeShowId !== showId) return;
+
+        const [episodes, seasons, images] = await Promise.all([
+          safeFetchArray(`${API_BASE}/shows/${showId}/episodes?specials=1`),
+          safeFetchArray(`${API_BASE}/shows/${showId}/seasons`),
+          safeFetchArray(`${API_BASE}/shows/${showId}/images`)
+        ]);
+
+        if (images.length) {
+          imageCache.set(showId, images);
+        }
+
+        if (version !== requestVersion || activeShowId !== showId) return;
+
+        const upcoming = findUpcomingTarget(show, episodes, seasons);
+        const estimate = !upcoming ? estimateNextSeasonDate(show, seasons) : null;
+        renderDetails(show, upcoming, estimate, version);
+      } catch (error) {
+        if (version !== requestVersion) return;
+        showError(error);
+      } finally {
+        if (version === requestVersion) {
+          setLoading(false);
+        }
+      }
+    }
+
+    function findUpcomingTarget(show, episodes, seasons) {
+      const now = new Date();
+
+      const embeddedNext = show._embedded?.nextepisode || null;
+      const embeddedDate = parseEpisodeDate(embeddedNext);
+
+      let nextEpisode = null;
+
+      if (embeddedNext && embeddedDate && embeddedDate >= now) {
+        nextEpisode = { ...embeddedNext, parsedDate: embeddedDate };
+      }
+
+      const listedNextEpisode = episodes
+        .map(ep => ({ ...ep, parsedDate: parseEpisodeDate(ep) }))
+        .filter(ep => ep.parsedDate && ep.parsedDate >= now)
+        .sort((a, b) => a.parsedDate - b.parsedDate)[0] || null;
+
+      if (!nextEpisode || (listedNextEpisode && listedNextEpisode.parsedDate < nextEpisode.parsedDate)) {
+        nextEpisode = listedNextEpisode;
+      }
+
+      if (nextEpisode) {
+        const isSeasonPremiere = Number(nextEpisode.number) === 1;
+        return {
+          kind: "episode",
+          title: nextEpisode.name || "Sin título anunciado",
+          targetDate: nextEpisode.parsedDate,
+          exactTime: Boolean(nextEpisode.airstamp || nextEpisode.airtime),
+          episode: nextEpisode,
+          isSeasonPremiere
+        };
+      }
+
+      const futureSeason = seasons
+        .map(season => ({ ...season, parsedDate: parseSeasonPremiereDate(season, show) }))
+        .filter(season => season.parsedDate && season.parsedDate >= startOfToday())
+        .sort((a, b) => a.parsedDate - b.parsedDate)[0] || null;
+
+      if (futureSeason) {
+        return {
+          kind: "season",
+          title: `Temporada ${futureSeason.number || "sin número"}`,
+          targetDate: futureSeason.parsedDate,
+          exactTime: Boolean(show.schedule?.time),
+          season: futureSeason
+        };
+      }
+
+      return null;
+    }
+
+    function estimateNextSeasonDate(show, seasons) {
+      if (show.status === "Ended") return null;
+
+      const sortedSeasons = seasons
+        .filter(season => season && Number.isFinite(Number(season.number)))
+        .map(season => ({ ...season, numericNumber: Number(season.number) }))
+        .sort((a, b) => a.numericNumber - b.numericNumber);
+
+      const datedSeasons = sortedSeasons
+        .filter(season => season?.premiereDate)
+        .map(season => ({
+          ...season,
+          premiere: parseLocalDateTime(season.premiereDate, show.schedule?.time || "00:00"),
+          end: season.endDate ? parseLocalDateTime(season.endDate, show.schedule?.time || "00:00") : null
+        }))
+        .filter(season => season.premiere)
+        .sort((a, b) => a.numericNumber - b.numericNumber || a.premiere - b.premiere);
+
+      if (!datedSeasons.length) return null;
+
+      const intervals = [];
+      const postSeasonGaps = [];
+
+      for (let i = 1; i < datedSeasons.length; i++) {
+        const previous = datedSeasons[i - 1];
+        const current = datedSeasons[i];
+
+        const premiereInterval = daysBetween(previous.premiere, current.premiere);
+        if (premiereInterval > 0) intervals.push(premiereInterval);
+
+        if (previous.end) {
+          const gap = daysBetween(previous.end, current.premiere);
+          if (gap > 0) postSeasonGaps.push(gap);
+        }
+      }
+
+      const lastSeason = datedSeasons[datedSeasons.length - 1];
+      const today = new Date();
+
+      const premiereIntervalDays = intervals.length ? median(intervals) : 365;
+      const postSeasonGapDays = postSeasonGaps.length ? median(postSeasonGaps) : null;
+
+      let method = "";
+      let intervalDays = null;
+
+      if (postSeasonGapDays && lastSeason.end) {
+        intervalDays = postSeasonGapDays;
+        method = "promedio entre final de temporada y siguiente estreno";
+      } else if (premiereIntervalDays) {
+        intervalDays = premiereIntervalDays;
+        method = "promedio entre estrenos de temporadas";
+      } else {
+        intervalDays = 365;
+        method = "referencia básica de una temporada anual";
+      }
+
+      if (!intervalDays || intervalDays < 60) intervalDays = 365;
+
+      const maxKnownNumber = sortedSeasons.length
+        ? Math.max(...sortedSeasons.map(season => season.numericNumber))
+        : (lastSeason.numericNumber || datedSeasons.length);
+
+      const lastDatedNumber = Number(lastSeason.numericNumber || lastSeason.number || datedSeasons.length);
+
+      const registeredPendingSeasons = sortedSeasons
+        .filter(season => !season.premiereDate && season.numericNumber > lastDatedNumber)
+        .sort((a, b) => a.numericNumber - b.numericNumber);
+
+      const pendingNumbers = registeredPendingSeasons.length
+        ? registeredPendingSeasons.map(season => season.numericNumber)
+        : [maxKnownNumber + 1];
+
+      let firstBase = postSeasonGapDays && lastSeason.end
+        ? addDays(lastSeason.end, postSeasonGapDays)
+        : addDays(lastSeason.premiere, premiereIntervalDays || intervalDays);
+
+      while (firstBase < today) {
+        firstBase = addDays(firstBase, premiereIntervalDays || intervalDays);
+      }
+
+      const projections = pendingNumbers.map((seasonNumber, index) => {
+        const rawDate = index === 0
+          ? firstBase
+          : addDays(firstBase, (premiereIntervalDays || intervalDays) * index);
+
+        const roundedDate = roundToNearestWeek(rawDate);
+
+        return {
+          seasonNumber,
+          targetDate: roundedDate,
+          year: roundedDate.getFullYear(),
+          yearsText: yearsUntilText(roundedDate)
+        };
+      });
+
+      const consistency = intervals.length >= 2 ? consistencyScore(intervals) : 0;
+      let confidence = "low";
+      let confidenceText = "baja";
+
+      if (intervals.length >= 3 && consistency >= 0.72) {
+        confidence = "high";
+        confidenceText = "alta";
+      } else if (intervals.length >= 2 || postSeasonGaps.length >= 2 || registeredPendingSeasons.length) {
+        confidence = "medium";
+        confidenceText = "media";
+      }
+
+      const firstProjection = projections[0];
+
+      return {
+        kind: "estimate",
+        title: registeredPendingSeasons.length
+          ? `Temporada ${firstProjection.seasonNumber} registrada sin fecha`
+          : `Posible temporada ${firstProjection.seasonNumber}`,
+        targetDate: firstProjection.targetDate,
+        exactTime: false,
+        confidence,
+        confidenceText,
+        method,
+        intervalDays: Math.round(premiereIntervalDays || intervalDays),
+        gapDays: Math.round(intervalDays),
+        seasonsUsed: datedSeasons.length,
+        lastSeasonNumber: lastSeason.number || datedSeasons.length,
+        registeredPendingSeasons: registeredPendingSeasons.map(season => season.numericNumber),
+        projections,
+        hasRegisteredPendingSeasons: registeredPendingSeasons.length > 0
+      };
+    }
+
+    function renderDetails(show, upcoming, estimate, version) {
+      const image = getBestImage(show);
+      const imageHTML = image
+        ? `<img src="${escapeAttr(image)}" alt="Póster de ${escapeAttr(show.name)}">`
+        : "Sin imagen";
+
+      const year = show.premiered ? show.premiered.slice(0, 4) : "Año desconocido";
+      const channel = show.network?.name || show.webChannel?.name || "No disponible";
+      const country = translateCountry(show.network?.country?.name || show.webChannel?.country?.name);
+      const schedule = getScheduleText(show);
+      const cleanSummary = stripHTML(show.summary) || "No hay sinopsis disponible.";
+      const statusClass = statusToClass(show.status);
+      const genres = (show.genres || []).slice(0, 5).map(translateGenre);
+      const language = translateLanguage(show.language);
+
+      let upcomingHTML = "";
+
+      if (upcoming?.kind === "episode") {
+        upcomingHTML = episodeBoxHTML(upcoming);
+      } else if (upcoming?.kind === "season") {
+        upcomingHTML = seasonBoxHTML(upcoming);
+      } else if (estimate?.kind === "estimate") {
+        upcomingHTML = estimateBoxHTML(estimate);
+      } else {
+        upcomingHTML = noUpcomingHTML(show);
+      }
+
+      const resourcesHTML = externalResourcesHTML(show, upcoming, estimate);
+
+      detailsEl.innerHTML = `
+        <div class="hero">
+          <div class="hero-poster">${imageHTML}</div>
+          <div>
+            <h2 class="show-title">${escapeHTML(show.name)}</h2>
+            <div class="meta">${escapeHTML(year)} · ${escapeHTML(language)} · ${escapeHTML(channel)}</div>
+
+            <div class="tags">
+              <span class="tag">${escapeHTML(translateType(show.type))}</span>
+              <span class="tag status ${statusClass}">${escapeHTML(translateStatus(show.status))}</span>
+              ${genres.map(genre => `<span class="tag">${escapeHTML(genre)}</span>`).join("")}
+            </div>
+
+            <div class="info-grid">
+              <div class="info"><small>Canal / streaming</small><b>${escapeHTML(channel)}</b></div>
+              <div class="info"><small>País</small><b>${escapeHTML(country)}</b></div>
+              <div class="info"><small>Horario habitual</small><b>${escapeHTML(schedule)}</b></div>
+              <div class="info" data-imdb-rating><small>Calificación IMDb</small><b>Consultando...</b></div>
+            </div>
+
+            <p class="summary translatable" data-original="${escapeAttr(cleanSummary)}">${escapeHTML(cleanSummary)}</p>
+            <div class="translation-note" data-translation-note>Traduciendo sinopsis al español...</div>
+
+            <div class="links">
+              ${show.officialSite ? `<a class="link" href="${escapeAttr(show.officialSite)}" target="_blank" rel="noreferrer">Sitio oficial ↗</a>` : ""}
+              ${show.url ? `<a class="link" href="${escapeAttr(show.url)}" target="_blank" rel="noreferrer">Ficha en TVmaze ↗</a>` : ""}
+            </div>
+          </div>
+        </div>
+
+        ${upcomingHTML}
+        ${resourcesHTML}
+      `;
+
+      const target = upcoming?.targetDate || estimate?.targetDate || null;
+      const exact = upcoming?.exactTime || false;
+      startCountdown(target, exact);
+      initializeIntegratedResources(show, upcoming, estimate);
+      updateIMDbRating(show, version);
+      translateVisibleTextInBackground(version);
+    }
+
+
+    function externalResourcesHTML(show, upcoming, estimate) {
+      const seasonNumber = getResourceSeasonNumber(upcoming, estimate);
+      const title = show?.name || "";
+      const trailerQuery = seasonNumber
+        ? `${title} temporada ${seasonNumber} tráiler oficial`
+        : `${title} tráiler oficial`;
+      const newsQuery = seasonNumber
+        ? `${title} temporada ${seasonNumber} estreno noticias`
+        : `${title} nueva temporada noticias`;
+      const platforms = inferPlatforms(show);
+
+      return `
+        <section class="resources-box" data-resource-panel>
+          <h3 class="resources-title">Plataformas y noticias</h3>
+          <p class="resources-subtitle">
+            Información integrada dentro de la ficha: plataformas detectadas, noticias relacionadas y tráiler en español cuando sea posible.
+          </p>
+
+          <div
+            class="trailer-section"
+            data-trailer-box
+            data-show-title="${escapeAttr(title)}"
+            data-season-number="${escapeAttr(seasonNumber || "")}"
+            data-trailer-query="${escapeAttr(trailerQuery)}">
+          </div>
+
+          <div class="platform-section">
+            <h4>Plataformas detectadas</h4>
+            <div class="platform-grid">
+              ${platforms.map(platformChipHTML).join("")}
+            </div>
+            <p class="resource-muted">
+              Estos iconos se generan con los datos disponibles en TVmaze y coincidencias conocidas de plataformas.
+              Para disponibilidad exacta en México, usa el botón de JustWatch.
+            </p>
+            <div class="resource-action-row">
+              <a href="${escapeAttr(justWatchURL(title))}" target="_blank" rel="noreferrer">Ver disponibilidad en JustWatch ↗</a>
+            </div>
+          </div>
+
+          <div class="news-section" data-news-section data-news-query="${escapeAttr(newsQuery)}">
+            <h4>Noticias de la temporada</h4>
+            <div class="news-list" data-news-list>
+              <div class="resource-muted">Buscando noticias relacionadas...</div>
+            </div>
+            <div class="resource-action-row">
+              <a href="${escapeAttr(googleNewsURL(newsQuery))}" target="_blank" rel="noreferrer">Abrir más noticias ↗</a>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+
+
+    function initializeIntegratedResources(show, upcoming, estimate) {
+      loadEmbeddedTrailer();
+      loadIntegratedNews();
+    }
+
+    async function loadEmbeddedTrailer() {
+      const box = document.querySelector("[data-trailer-box]");
+      if (!box) return;
+
+      const query = box.dataset.trailerQuery || "";
+      const showTitle = box.dataset.showTitle || "";
+      const seasonNumber = box.dataset.seasonNumber || "";
+
+      try {
+        const trailer = await resolveTrailerVideo(query, showTitle, seasonNumber);
+
+        if (!trailer?.videoId) {
+          box.remove();
+          return;
+        }
+
+        renderResolvedTrailerEmbed(box, trailer, query);
+      } catch (error) {
+        console.warn("No se pudo resolver el tráiler embebido:", error);
+        box.remove();
+      }
+    }
+
+    function renderResolvedTrailerEmbed(box, trailer, query) {
+      const videoId = trailer.videoId;
+      const canEmbedYouTube = window.location.protocol === "http:" || window.location.protocol === "https:";
+      const alternatives = Array.isArray(trailer.alternatives) ? trailer.alternatives : [];
+      const alternativeButtons = alternatives.length > 1
+        ? alternatives.map(item => `
+          <button
+            type="button"
+            data-trailer-alternative="${escapeAttr(item.videoId)}"
+            data-trailer-title="${escapeAttr(item.title || "")}">
+            ${escapeHTML(item.label || "Alternativa")}
+          </button>
+        `).join("")
+        : "";
+
+      box.classList.add("active");
+      box.innerHTML = `
+        <h4>Tráiler encontrado</h4>
+        <div class="embedded-trailer" data-trailer-media>
+          ${canEmbedYouTube ? trailerIframeHTML(videoId) : trailerThumbnailHTML(videoId)}
+        </div>
+        <div class="trailer-source" data-current-trailer-title>
+          ${trailer.title ? `${escapeHTML(trailer.title)}${trailer.uploader ? ` · ${escapeHTML(trailer.uploader)}` : ""}<br>` : ""}
+          ${canEmbedYouTube
+            ? "Se priorizan tráileres en español o español latino cuando están disponibles."
+            : "Tu navegador abrió la página como archivo local; para evitar reproductores rotos, se muestra una miniatura limpia con acceso directo al video."}
+        </div>
+        <div class="resource-action-row">
+          ${alternativeButtons}
+          <a data-current-trailer-link href="${escapeAttr(youtubeWatchURL(videoId))}" target="_blank" rel="noreferrer">Abrir en YouTube ↗</a>
+          <a href="${escapeAttr(youtubeSearchURL(query))}" target="_blank" rel="noreferrer">Buscar más ↗</a>
+        </div>
+      `;
+
+      bindTrailerAlternatives(box);
+    }
+
+    function getTrailerOverrideCandidates(showTitle, seasonNumber = "") {
+      const key = normalizeText(showTitle || "");
+      const season = String(seasonNumber || "").trim();
+      const config = TRAILER_OVERRIDES[key];
+
+      if (!config) return [];
+
+      const candidates = config[season] || config.default || [];
+      return candidates.map(candidate => ({
+        ...candidate,
+        sourceQuery: "override",
+        score: 999,
+        alternatives: candidates
+      }));
+    }
+
+    async function resolveTrailerVideo(query, showTitle, seasonNumber = "") {
+      const overrideCandidates = getTrailerOverrideCandidates(showTitle, seasonNumber);
+      if (overrideCandidates.length) {
+        return overrideCandidates[0];
+      }
+
+      const queries = buildTrailerQueries(query, showTitle, seasonNumber);
+      const candidates = [];
+
+      for (const trailerQuery of queries) {
+        const pipedResults = await searchTrailerViaPiped(trailerQuery);
+        candidates.push(...pipedResults.map(item => ({ ...item, sourceQuery: trailerQuery })));
+
+        if (candidates.length < 5) {
+          const invidiousResults = await searchTrailerViaInvidious(trailerQuery);
+          candidates.push(...invidiousResults.map(item => ({ ...item, sourceQuery: trailerQuery })));
+        }
+
+        const validSoFar = candidates
+          .filter(candidate => candidate?.videoId)
+          .map(candidate => ({
+            ...candidate,
+            score: scoreTrailerCandidate(candidate, showTitle, seasonNumber)
+          }))
+          .filter(candidate => candidate.score >= 45)
+          .sort((a, b) => b.score - a.score);
+
+        if (validSoFar.length) {
+          return validSoFar[0];
+        }
+      }
+
+      // Último intento: scraping de HTML de YouTube vía proxy.
+      for (const trailerQuery of queries.slice(0, 3)) {
+        const youtubeResults = await searchTrailerViaYouTubeHTML(trailerQuery);
+        candidates.push(...youtubeResults.map(item => ({ ...item, sourceQuery: trailerQuery })));
+      }
+
+      const validCandidates = dedupeTrailerCandidates(candidates)
+        .filter(candidate => candidate?.videoId)
+        .map(candidate => ({
+          ...candidate,
+          score: scoreTrailerCandidate(candidate, showTitle, seasonNumber)
+        }))
+        .filter(candidate => candidate.score >= 42)
+        .sort((a, b) => b.score - a.score);
+
+      return validCandidates[0] || null;
+    }
+
+    function buildTrailerQueries(originalQuery, showTitle, seasonNumber = "") {
+      const title = String(showTitle || "").trim();
+      const season = String(seasonNumber || "").trim();
+      const queries = new Set();
+
+      if (title) {
+        if (season) {
+          // Prioridad máxima: tráileres en español o español latino.
+          queries.add(`${title} temporada ${season} tráiler oficial español latino`);
+          queries.add(`${title} temporada ${season} trailer oficial español latino`);
+          queries.add(`${title} temporada ${season} tráiler español`);
+          queries.add(`${title} temporada ${season} trailer subtitulado español`);
+          queries.add(`${title} temporada ${season} avance oficial español`);
+          queries.add(`${title} S${String(season).padStart(2, "0")} trailer español`);
+        }
+
+        queries.add(`${title} tráiler oficial español latino`);
+        queries.add(`${title} trailer oficial español latino`);
+        queries.add(`${title} tráiler español`);
+        queries.add(`${title} trailer subtitulado español`);
+        queries.add(`${title} avance oficial español`);
+
+        // Respaldo: inglés/oficial, útil cuando todavía no existe material en español.
+        if (season) {
+          queries.add(`${title} season ${season} official trailer`);
+          queries.add(`${title} season ${season} trailer`);
+          queries.add(`${title} S${String(season).padStart(2, "0")} trailer`);
+        }
+
+        queries.add(`${title} official trailer`);
+        queries.add(`${title} trailer`);
+        queries.add(`${title} teaser`);
+      }
+
+      if (originalQuery) queries.add(originalQuery);
+
+      return [...queries]
+        .map(value => value.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .slice(0, 14);
+    }
+
+    async function searchTrailerViaInvidious(query) {
+      for (const endpoint of INVIDIOUS_ENDPOINTS) {
+        try {
+          const url = `${endpoint}?q=${encodeURIComponent(query)}&type=video`;
+          const data = await fetchJSON(url);
+          const items = Array.isArray(data) ? data : [];
+
+          const results = items
+            .filter(item => item.type === "video" || item.videoId)
+            .map(item => ({
+              title: item.title || "",
+              url: item.videoId ? youtubeWatchURL(item.videoId) : item.url || "",
+              uploader: item.author || item.authorName || "",
+              videoId: item.videoId || extractYouTubeId(item.url || "")
+            }))
+            .filter(item => item.videoId);
+
+          if (results.length) return results;
+        } catch (error) {
+          console.warn("Endpoint Invidious falló:", endpoint, error);
+        }
+      }
+
+      return [];
+    }
+
+    function dedupeTrailerCandidates(candidates) {
+      const map = new Map();
+
+      for (const candidate of candidates) {
+        if (!candidate?.videoId) continue;
+        if (!map.has(candidate.videoId)) {
+          map.set(candidate.videoId, candidate);
+        }
+      }
+
+      return [...map.values()];
+    }
+
+    async function searchTrailerViaPiped(query) {
+      for (const endpoint of PIPED_ENDPOINTS) {
+        try {
+          const url = `${endpoint}?q=${encodeURIComponent(query)}&filter=videos`;
+          const data = await fetchJSON(url);
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+          const results = items
+            .map(item => ({
+              title: item.title || "",
+              url: item.url || item.link || "",
+              uploader: item.uploaderName || item.uploader || item.author || "",
+              videoId: item.url ? extractYouTubeId(item.url) : item.id || item.videoId || extractYouTubeId(item.link || "")
+            }))
+            .filter(item => item.videoId);
+
+          if (results.length) return results;
+        } catch (error) {
+          console.warn("Endpoint Piped falló:", endpoint, error);
+        }
+      }
+
+      return [];
+    }
+
+    async function searchTrailerViaYouTubeHTML(query) {
+      const searchURL = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+      const proxiedURL = `https://api.allorigins.win/raw?url=${encodeURIComponent(searchURL)}`;
+
+      try {
+        const htmlText = await fetchText(proxiedURL);
+        const ids = extractYouTubeIdsFromHTML(htmlText);
+
+        return ids.map(id => ({
+          videoId: id,
+          title: query,
+          url: youtubeWatchURL(id)
+        }));
+      } catch (error) {
+        console.warn("No pude resolver videoId desde YouTube vía proxy:", error);
+        return [];
+      }
+    }
+
+    function scoreTrailerCandidate(candidate, showTitle, seasonNumber = "") {
+      const titleRaw = candidate.title || "";
+      const uploaderRaw = candidate.uploader || "";
+      const title = normalizeText(titleRaw);
+      const uploader = normalizeText(uploaderRaw);
+      const show = normalizeText(showTitle || "");
+      const sourceQuery = normalizeText(candidate.sourceQuery || "");
+
+      if (!title || !show) return 0;
+
+      const showTokens = show.split(" ").filter(token => token.length >= 1);
+      const meaningfulTokens = showTokens.filter(token => token.length >= 2 || /\d/.test(token));
+      let score = 0;
+
+      if (title.includes(show)) score += 50;
+
+      const matchedTokens = meaningfulTokens.filter(token => title.includes(token));
+      const neededMatches = Math.max(1, Math.ceil(meaningfulTokens.length * 0.55));
+
+      score += matchedTokens.length * 16;
+
+      if (matchedTokens.length >= neededMatches) score += 26;
+
+      if (/\b(trailer|tráiler|teaser|official|oficial|avance|pv|promo|sneak peek)\b/i.test(titleRaw)) {
+        score += 35;
+      }
+
+      // Preferencia fuerte por material en español, español latino o subtitulado.
+      if (/\b(español|espanol|latino|latam|castellano|doblado|subtitulado|subs? español|sub esp|avance oficial)\b/i.test(titleRaw + " " + uploaderRaw)) {
+        score += 42;
+      }
+
+      // Si la consulta que produjo el resultado ya era en español, le damos un empujón.
+      if (/\b(espanol|latino|subtitulado|avance|trailer oficial espanol)\b/i.test(sourceQuery)) {
+        score += 12;
+      }
+
+      // Canales que suelen publicar material oficial en español/latino.
+      if (/\b(disney latino|disney plus latino|marvel latino|marvel latinoamerica|warner bros pictures latinoamerica|netflix latinoamerica|prime video mexico|crunchyroll en espanol|max latinoamerica)\b/i.test(titleRaw + " " + uploaderRaw)) {
+        score += 18;
+      }
+
+      if (seasonNumber) {
+        const seasonPatterns = [
+          `season ${seasonNumber}`,
+          `temporada ${seasonNumber}`,
+          `s${String(seasonNumber).padStart(2, "0")}`,
+          `s${seasonNumber}`
+        ];
+
+        if (seasonPatterns.some(pattern => title.includes(normalizeText(pattern)))) {
+          score += 18;
+        }
+      }
+
+      if (/\b(disney|marvel|netflix|max|hbo|prime video|amazon|crunchyroll|official|oficial)\b/i.test(titleRaw + " " + uploaderRaw)) {
+        score += 10;
+      }
+
+      if (/\b(review|reaction|explained|ending|recap|resumen|crítica|critica|analysis|análisis|analisis|breakdown|easter eggs)\b/i.test(titleRaw)) {
+        score -= 50;
+      }
+
+      // Si es claramente un fandub o edit no oficial, baja prioridad.
+      if (/\b(fandub|fan trailer|concept trailer|edit|amv)\b/i.test(titleRaw)) {
+        score -= 35;
+      }
+
+      // Caso especial para títulos muy cortos o con números, como "X-Men '97".
+      if (showTokens.some(token => /\d/.test(token)) && matchedTokens.length >= 2) {
+        score += 18;
+      }
+
+      return score;
+    }
+
+    function extractYouTubeIdsFromHTML(htmlText) {
+      const text = String(htmlText || "");
+      const ids = [];
+      const seen = new Set();
+
+      const regexes = [
+        /"videoId":"([a-zA-Z0-9_-]{11})"/g,
+        /\/watch\?v=([a-zA-Z0-9_-]{11})/g
+      ];
+
+      for (const regex of regexes) {
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const id = match[1];
+          if (!seen.has(id)) {
+            seen.add(id);
+            ids.push(id);
+          }
+        }
+      }
+
+      return ids;
+    }
+
+    function inlineTrailerEmbedURL(videoId) {
+      const cleanId = String(videoId || "").trim();
+      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(cleanId)}?rel=0&modestbranding=1&playsinline=1`;
+    }
+
+    function trailerIframeHTML(videoId) {
+      return `
+        <iframe
+          class="embedded-trailer-frame"
+          src="${escapeAttr(inlineTrailerEmbedURL(videoId))}"
+          title="Tráiler insertado"
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+        </iframe>
+      `;
+    }
+
+    function trailerThumbnailHTML(videoId) {
+      return `
+        <a class="trailer-thumb-card" href="${escapeAttr(youtubeWatchURL(videoId))}" target="_blank" rel="noreferrer">
+          <img src="${escapeAttr(youtubeThumbnailURL(videoId))}" alt="Miniatura del tráiler" loading="lazy">
+          <span class="trailer-play-overlay">
+            <span>
+              <span class="trailer-play-button">▶</span>
+              <span class="trailer-play-text">Ver tráiler en YouTube</span>
+            </span>
+          </span>
+        </a>
+      `;
+    }
+
+    function youtubeThumbnailURL(videoId) {
+      return `https://img.youtube.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`;
+    }
+
+    function bindTrailerAlternatives(box) {
+      const media = box.querySelector("[data-trailer-media]");
+      const currentTitle = box.querySelector("[data-current-trailer-title]");
+      const currentLink = box.querySelector("[data-current-trailer-link]");
+      const canEmbedYouTube = window.location.protocol === "http:" || window.location.protocol === "https:";
+
+      box.querySelectorAll("[data-trailer-alternative]").forEach(button => {
+        button.addEventListener("click", () => {
+          const videoId = button.dataset.trailerAlternative || "";
+          const title = button.dataset.trailerTitle || "";
+
+          if (!videoId || !media) return;
+
+          media.innerHTML = canEmbedYouTube ? trailerIframeHTML(videoId) : trailerThumbnailHTML(videoId);
+
+          if (currentLink) {
+            currentLink.href = youtubeWatchURL(videoId);
+          }
+
+          if (currentTitle) {
+            currentTitle.innerHTML = `${escapeHTML(title)}<br>${canEmbedYouTube
+              ? "Se priorizan tráileres en español o español latino cuando están disponibles."
+              : "Tu navegador abrió la página como archivo local; se muestra miniatura limpia con acceso directo al video."}`;
+          }
+        });
+      });
+    }
+
+    function renderTrailerFallback(box, query, message) {
+      box.innerHTML = `
+        <div class="embedded-trailer-placeholder">
+          <div>
+            <strong>Tráiler no disponible</strong><br>
+            ${escapeHTML(message)}
+            <div class="resource-action-row" style="justify-content: center;">
+              <a href="${escapeAttr(youtubeSearchURL(query))}" target="_blank" rel="noreferrer">Buscar en YouTube ↗</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function findYouTubeVideoId(query) {
+      const cleanQuery = String(query || "").trim();
+      if (!cleanQuery) return "";
+
+      for (const endpoint of TRAILER_ENDPOINTS) {
+        try {
+          const url = `${endpoint}?q=${encodeURIComponent(cleanQuery)}&filter=videos`;
+          const data = await fetchJSON(url);
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+
+          const best = items.find(item => {
+            const title = String(item.title || "").toLowerCase();
+            const url = String(item.url || item.link || "");
+            return /trailer|teaser|official|oficial|pv|avance/i.test(title) && extractYouTubeId(url);
+          }) || items.find(item => extractYouTubeId(String(item.url || item.link || "")));
+
+          const id = best ? extractYouTubeId(String(best.url || best.link || "")) : "";
+          if (id) return id;
+        } catch (error) {
+          console.warn("Endpoint de tráiler falló:", endpoint, error);
+        }
+      }
+
+      return "";
+    }
+
+    function extractYouTubeId(value = "") {
+      const text = String(value || "").trim();
+
+      if (/^[a-zA-Z0-9_-]{11}$/.test(text)) {
+        return text;
+      }
+
+      const match =
+        text.match(/[?&]v=([a-zA-Z0-9_-]{11})/) ||
+        text.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) ||
+        text.match(/\/watch\/([a-zA-Z0-9_-]{11})/) ||
+        text.match(/\/embed\/([a-zA-Z0-9_-]{11})/) ||
+        text.match(/\/vi\/([a-zA-Z0-9_-]{11})/);
+
+      return match ? match[1] : "";
+    }
+
+    function youtubeWatchURL(videoId) {
+      return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+    }
+
+    function inferPlatforms(show) {
+      const names = [
+        show?.webChannel?.name,
+        show?.network?.name,
+        getHostname(show?.officialSite || "")
+      ].filter(Boolean);
+
+      const normalizedBlob = normalizeText(names.join(" "));
+      const platforms = [];
+
+      for (const provider of PLATFORM_PROVIDERS) {
+        if (normalizedBlob.includes(normalizeText(provider.key))) {
+          addUniquePlatform(platforms, provider);
+        }
+      }
+
+      // Ajustes comunes cuando TVmaze registra un canal tradicional, pero la marca se ve en streaming.
+      if (normalizedBlob.includes("hbo")) {
+        addUniquePlatform(platforms, PLATFORM_PROVIDERS.find(item => item.label === "Max"));
+      }
+
+      if (normalizedBlob.includes("disney")) {
+        addUniquePlatform(platforms, PLATFORM_PROVIDERS.find(item => item.label === "Disney+"));
+      }
+
+      if (normalizedBlob.includes("amazon")) {
+        addUniquePlatform(platforms, PLATFORM_PROVIDERS.find(item => item.label === "Prime Video"));
+      }
+
+      if (!platforms.length && show?.webChannel?.name) {
+        platforms.push({
+          label: show.webChannel.name,
+          domain: getHostname(show.webChannel.officialSite || show.officialSite || ""),
+          url: show.webChannel.officialSite || show.officialSite || googleSearchURL(`${show.name} streaming México`)
+        });
+      }
+
+      if (!platforms.length && show?.network?.name) {
+        platforms.push({
+          label: show.network.name,
+          domain: getHostname(show.officialSite || ""),
+          url: show.officialSite || googleSearchURL(`${show.name} ${show.network.name}`)
+        });
+      }
+
+      if (!platforms.length) {
+        platforms.push({
+          label: "Plataforma no detectada",
+          domain: "",
+          url: googleSearchURL(`${show?.name || ""} streaming México`)
+        });
+      }
+
+      return platforms
+        .filter(platform => platform.label !== "JustWatch México")
+        .slice(0, 5);
+    }
+
+    function addUniquePlatform(platforms, provider) {
+      if (!provider) return;
+      const label = provider.label || "";
+      if (!label || platforms.some(item => item.label === label)) return;
+      platforms.push(provider);
+    }
+
+    function platformChipHTML(platform) {
+      const domain = platform.domain || "";
+      const icon = domain ? faviconURL(domain) : "";
+      const image = icon
+        ? `<img src="${escapeAttr(icon)}" alt="" loading="lazy">`
+        : `<span aria-hidden="true">📺</span>`;
+
+      return `
+        <a class="platform-chip" href="${escapeAttr(platform.url || "#")}" target="_blank" rel="noreferrer">
+          ${image}
+          <span>${escapeHTML(platform.label || "Plataforma")}</span>
+        </a>
+      `;
+    }
+
+    function faviconURL(domain) {
+      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+    }
+
+    function getHostname(url = "") {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return "";
+      }
+    }
+
+    async function loadIntegratedNews() {
+      const section = document.querySelector("[data-news-section]");
+      const list = document.querySelector("[data-news-list]");
+      if (!section || !list) return;
+
+      const query = section.dataset.newsQuery || "";
+
+      try {
+        const rssURL = googleNewsRSSURL(query);
+        const proxyURL = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssURL)}`;
+        const text = await fetchText(proxyURL);
+        const news = parseGoogleNewsRSS(text).slice(0, 4);
+
+        if (!news.length) {
+          list.innerHTML = `<div class="resource-muted">No encontré noticias recientes para mostrar dentro de la página.</div>`;
+          return;
+        }
+
+        list.innerHTML = news.map(newsCardHTML).join("");
+      } catch (error) {
+        console.warn("No se pudieron cargar noticias integradas:", error);
+        list.innerHTML = `<div class="resource-muted">No pude cargar noticias integradas ahora. Usa el botón de noticias como respaldo.</div>`;
+      }
+    }
+
+    async function fetchText(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Error de conexión: ${response.status}`);
+      return response.text();
+    }
+
+    function googleNewsRSSURL(query) {
+      return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es-419&gl=MX&ceid=MX:es-419`;
+    }
+
+    function parseGoogleNewsRSS(xmlText) {
+      const documentXML = new DOMParser().parseFromString(xmlText, "text/xml");
+      const items = [...documentXML.querySelectorAll("item")];
+
+      return items.map(item => ({
+        title: item.querySelector("title")?.textContent || "Noticia sin título",
+        link: item.querySelector("link")?.textContent || "#",
+        source: item.querySelector("source")?.textContent || "Google News",
+        date: item.querySelector("pubDate")?.textContent || ""
+      }));
+    }
+
+    function newsCardHTML(news) {
+      const date = news.date ? formatNewsDate(news.date) : "";
+
+      return `
+        <a class="news-card" href="${escapeAttr(news.link)}" target="_blank" rel="noreferrer">
+          <strong>${escapeHTML(news.title)}</strong>
+          <span>${escapeHTML([news.source, date].filter(Boolean).join(" · "))}</span>
+        </a>
+      `;
+    }
+
+    function formatNewsDate(value) {
+      const date = new Date(value);
+      if (isNaN(date)) return "";
+
+      return new Intl.DateTimeFormat("es-MX", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: MEXICO_TIME_ZONE
+      }).format(date);
+    }
+
+    function resourceCardHTML({ title, description, button, url }) {
+      return `
+        <article class="resource-card">
+          <strong>${escapeHTML(title)}</strong>
+          <span>${escapeHTML(description)}</span>
+          <button
+            type="button"
+            data-resource-button
+            data-resource-title="${escapeAttr(title)}"
+            data-resource-url="${escapeAttr(url)}">
+            ${escapeHTML(button)}
+          </button>
+        </article>
+      `;
+    }
+
+    function bindResourceViewer() {
+      const viewer = document.querySelector("#resourceViewer");
+      const frame = document.querySelector("#resourceViewerFrame");
+      const title = document.querySelector("#resourceViewerTitle");
+      const external = document.querySelector("#resourceViewerExternal");
+      const close = document.querySelector("#resourceViewerClose");
+
+      if (!viewer || !frame || !title || !external) return;
+
+      document.querySelectorAll("[data-resource-button]").forEach(button => {
+        button.addEventListener("click", () => {
+          const url = button.dataset.resourceUrl || "";
+          const resourceTitle = button.dataset.resourceTitle || "Vista integrada";
+
+          title.textContent = resourceTitle;
+          external.href = url;
+          frame.src = url;
+          viewer.classList.add("active");
+          viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+
+      if (close) {
+        close.addEventListener("click", () => {
+          frame.src = "about:blank";
+          viewer.classList.remove("active");
+        });
+      }
+    }
+
+    function getResourceSeasonNumber(upcoming, estimate) {
+      if (upcoming?.kind === "episode" && upcoming?.episode?.season) {
+        return Number(upcoming.episode.season);
+      }
+
+      if (upcoming?.kind === "season" && upcoming?.season?.number) {
+        return Number(upcoming.season.number);
+      }
+
+      if (estimate?.projections?.[0]?.seasonNumber) {
+        return Number(estimate.projections[0].seasonNumber);
+      }
+
+      return null;
+    }
+
+    function youtubeSearchURL(query) {
+      return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    }
+
+    function youtubeSearchEmbedURL(query) {
+      // Inserta un reproductor de YouTube basado en búsqueda.
+      // Es más estable en un HTML local que depender de APIs externas sin llave.
+      return `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(query)}`;
+    }
+
+    function justWatchURL(title) {
+      return `https://www.justwatch.com/mx/buscar?q=${encodeURIComponent(title)}`;
+    }
+
+    function googleNewsURL(query) {
+      return `https://news.google.com/search?q=${encodeURIComponent(query)}&hl=es-419&gl=MX&ceid=MX:es-419`;
+    }
+
+    function googleSearchURL(query) {
+      return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    }
+
+    function episodeBoxHTML(upcoming) {
+      const episode = upcoming.episode;
+      const episodeDate = upcoming.targetDate;
+      const dateText = episodeDate ? formatDate(episodeDate) : (episode.airdate || "Fecha no disponible");
+      const timeText = episodeDate && upcoming.exactTime ? formatTime(episodeDate) : "Hora no disponible";
+      const seasonEpisode = [
+        episode.season ? `Temporada ${episode.season}` : null,
+        episode.number ? `Episodio ${episode.number}` : null
+      ].filter(Boolean).join(" · ") || "Episodio especial o sin numeración";
+      const episodeSummary = stripHTML(episode.summary);
+      const runtime = episode.runtime ? `${episode.runtime} min` : "No disponible";
+      const label = upcoming.isSeasonPremiere
+        ? "Próximo estreno de temporada"
+        : "Próximo episodio conocido";
+
+      return `
+        <section class="next-box">
+          <div class="next-label">${escapeHTML(label)}</div>
+          <h3 class="episode-title">${escapeHTML(episode.name || "Sin título anunciado")}</h3>
+          <div class="meta">${escapeHTML(seasonEpisode)}</div>
+          <div class="countdown" id="countdown">${countdownHTML(episodeDate)}</div>
+
+          <div class="info-grid">
+            <div class="info"><small>Fecha</small><b>${escapeHTML(dateText)}</b></div>
+            <div class="info"><small>Hora en México</small><b>${escapeHTML(timeText)}</b></div>
+            <div class="info"><small>Duración</small><b>${escapeHTML(runtime)}</b></div>
+            <div class="info"><small>Tipo</small><b>${upcoming.isSeasonPremiere ? "Estreno de temporada" : "Episodio nuevo"}</b></div>
+          </div>
+
+          ${episodeSummary ? `
+            <p class="summary translatable" data-original="${escapeAttr(episodeSummary)}">${escapeHTML(episodeSummary)}</p>
+            <div class="translation-note" data-translation-note>Traduciendo sinopsis del episodio...</div>
+          ` : ""}
+
+          <div class="links">
+            ${episode.url ? `<a class="link" href="${escapeAttr(episode.url)}" target="_blank" rel="noreferrer">Ver episodio en TVmaze ↗</a>` : ""}
+          </div>
+        </section>
+      `;
+    }
+
+    function seasonBoxHTML(upcoming) {
+      const season = upcoming.season;
+      const dateText = formatDate(upcoming.targetDate);
+      const timeText = upcoming.exactTime ? formatTime(upcoming.targetDate) : "Sin hora exacta registrada";
+      const seasonSummary = stripHTML(season.summary);
+      const episodeOrder = season.episodeOrder ? `${season.episodeOrder} episodios` : "No disponible";
+
+      return `
+        <section class="next-box">
+          <div class="next-label">Estreno de temporada registrado</div>
+          <h3 class="episode-title">${escapeHTML(upcoming.title)}</h3>
+          <div class="meta">La serie parece estar entre temporadas, pero TVmaze tiene una fecha futura para esta temporada.</div>
+          <div class="countdown" id="countdown">${countdownHTML(upcoming.targetDate)}</div>
+
+          <div class="info-grid">
+            <div class="info"><small>Fecha de estreno</small><b>${escapeHTML(dateText)}</b></div>
+            <div class="info"><small>Hora en México</small><b>${escapeHTML(timeText)}</b></div>
+            <div class="info"><small>Episodios esperados</small><b>${escapeHTML(episodeOrder)}</b></div>
+            <div class="info"><small>Tipo</small><b>Temporada nueva</b></div>
+          </div>
+
+          ${!upcoming.exactTime ? `<div class="notice good">TVmaze tiene fecha de estreno de temporada, pero no una hora exacta. La cuenta regresiva usa el inicio de ese día en horario de México.</div>` : ""}
+
+          ${seasonSummary ? `
+            <p class="summary translatable" data-original="${escapeAttr(seasonSummary)}">${escapeHTML(seasonSummary)}</p>
+            <div class="translation-note" data-translation-note>Traduciendo sinopsis de la temporada...</div>
+          ` : ""}
+
+          <div class="links">
+            ${season.url ? `<a class="link" href="${escapeAttr(season.url)}" target="_blank" rel="noreferrer">Ver temporada en TVmaze ↗</a>` : ""}
+          </div>
+        </section>
+      `;
+    }
+
+
+    function estimatedYearText(date) {
+      if (!date || isNaN(date)) return "No disponible";
+      return String(date.getFullYear());
+    }
+
+    function yearsUntilText(date) {
+      if (!date || isNaN(date)) return "No disponible";
+
+      const now = new Date();
+      const totalDays = Math.max(0, daysBetween(now, date));
+      const years = Math.floor(totalDays / 365.2425);
+      const remainingDays = Math.round(totalDays - years * 365.2425);
+      const months = Math.round(remainingDays / 30.44);
+
+      if (totalDays < 30) {
+        return "Menos de 1 mes";
+      }
+
+      if (years <= 0) {
+        return months === 1 ? "Aprox. 1 mes" : `Aprox. ${months} meses`;
+      }
+
+      if (months <= 0) {
+        return years === 1 ? "Aprox. 1 año" : `Aprox. ${years} años`;
+      }
+
+      const yearText = years === 1 ? "1 año" : `${years} años`;
+      const monthText = months === 1 ? "1 mes" : `${months} meses`;
+      return `Aprox. ${yearText} y ${monthText}`;
+    }
+
+    function estimateBoxHTML(estimate) {
+      const dateText = formatDate(estimate.targetDate);
+      const yearText = estimatedYearText(estimate.targetDate);
+      const yearsText = yearsUntilText(estimate.targetDate);
+      const projectionRows = (estimate.projections || []).map(projection => `
+        <div class="projection-item">
+          <div>
+            <strong>Temporada ${escapeHTML(String(projection.seasonNumber))}</strong>
+            <div class="projection-date">
+              ${escapeHTML(formatDate(projection.targetDate))} · ${escapeHTML(projection.yearsText)}
+            </div>
+          </div>
+          <div class="projection-year">${escapeHTML(String(projection.year))}</div>
+        </div>
+      `).join("");
+
+      const registeredText = estimate.hasRegisteredPendingSeasons
+        ? `TVmaze ya tiene registrada(s) la(s) temporada(s) ${escapeHTML(estimate.registeredPendingSeasons.join(", "))}, pero sin fecha oficial de estreno.`
+        : "No encontré una temporada futura registrada, así que calculé la posible siguiente temporada.";
+
+      return `
+        <section class="estimate-box">
+          <div class="next-label">Estimación no oficial</div>
+          <h3 class="episode-title">${escapeHTML(estimate.title)}</h3>
+          <div class="meta">
+            ${registeredText} La aproximación usa las temporadas anteriores como referencia.
+          </div>
+
+          <div class="countdown" id="countdown">${countdownHTML(estimate.targetDate)}</div>
+
+          <div class="info-grid">
+            <div class="info"><small>Próxima fecha estimada</small><b>${escapeHTML(dateText)}</b></div>
+            <div class="info"><small>Año estimado de estreno</small><b>${escapeHTML(yearText)}</b></div>
+            <div class="info"><small>Tiempo aproximado</small><b>${escapeHTML(yearsText)}</b></div>
+            <div class="info"><small>Hora en México</small><b>Sin hora oficial</b></div>
+            <div class="info"><small>Temporadas usadas</small><b>${escapeHTML(String(estimate.seasonsUsed))}</b></div>
+            <div class="info"><small>Patrón aproximado</small><b>Cada ${escapeHTML(String(estimate.intervalDays))} días</b></div>
+          </div>
+
+          ${projectionRows ? `
+            <div class="projection-list">
+              ${projectionRows}
+            </div>
+          ` : ""}
+
+          <span class="confidence ${escapeHTML(estimate.confidence)}">Confianza ${escapeHTML(estimate.confidenceText)}</span>
+
+          <div class="notice">
+            Esta no es una fecha confirmada. La cuenta regresiva toma como referencia la primera temporada pendiente.
+            La estimación apunta al año ${escapeHTML(yearText)} y faltaría ${escapeHTML(yearsText.toLowerCase())}.
+            Se calculó con el historial de estrenos de la serie: ${escapeHTML(estimate.method)}.
+          </div>
+        </section>
+      `;
+    }
+
+    function noUpcomingHTML(show) {
+      const message = show.status === "Ended"
+        ? "La serie aparece como finalizada, así que no hay un próximo episodio ni temporada futura registrada."
+        : "No hay próximo episodio, temporada futura ni suficientes datos históricos para hacer una estimación confiable.";
+
+      return `<div class="notice">${escapeHTML(message)}</div>`;
+    }
+
+
+    async function updateIMDbRating(show, version) {
+      const ratingBox = document.querySelector("[data-imdb-rating]");
+      if (!ratingBox) return;
+
+      const imdbId = show?.externals?.imdb;
+
+      if (!imdbId) {
+        ratingBox.innerHTML = `<small>Calificación IMDb</small><b>No disponible</b>`;
+        return;
+      }
+
+      try {
+        const rating = await fetchIMDbRating(imdbId);
+
+        if (version !== requestVersion || activeShowId !== show.id) return;
+
+        if (rating?.value) {
+          ratingBox.innerHTML = `
+            <small>Calificación IMDb</small>
+            <b>${escapeHTML(rating.value)}/10</b>
+            <a class="imdb-link" href="${escapeAttr(imdbTitleURL(imdbId))}" target="_blank" rel="noreferrer">Ver en IMDb ↗</a>
+          `;
+        } else {
+          ratingBox.innerHTML = `
+            <small>Calificación IMDb</small>
+            <b>No disponible</b>
+            <a class="imdb-link" href="${escapeAttr(imdbTitleURL(imdbId))}" target="_blank" rel="noreferrer">Ver en IMDb ↗</a>
+          `;
+        }
+      } catch (error) {
+        console.warn("No se pudo obtener rating de IMDb:", error);
+
+        if (version !== requestVersion || activeShowId !== show.id) return;
+
+        ratingBox.innerHTML = `
+          <small>Calificación IMDb</small>
+          <b>No disponible</b>
+          <a class="imdb-link" href="${escapeAttr(imdbTitleURL(imdbId))}" target="_blank" rel="noreferrer">Ver en IMDb ↗</a>
+        `;
+      }
+    }
+
+    async function fetchIMDbRating(imdbId) {
+      const cleanId = String(imdbId || "").trim();
+      if (!cleanId) return null;
+
+      // Fuente pública de metadatos basada en el ID de IMDb.
+      // Si no devuelve rating, la app mantiene el enlace directo a IMDb.
+      const cinemetaURL = `https://v3-cinemeta.strem.io/meta/series/${encodeURIComponent(cleanId)}.json`;
+      const data = await fetchJSON(cinemetaURL);
+      const rating = data?.meta?.imdbRating || data?.meta?.imdbRatingValue || data?.meta?.rating;
+
+      if (!rating) return null;
+
+      const numeric = Number(rating);
+      return {
+        value: Number.isFinite(numeric) ? numeric.toFixed(1).replace(".0", "") : String(rating)
+      };
+    }
+
+    function imdbTitleURL(imdbId) {
+      return `https://www.imdb.com/title/${encodeURIComponent(imdbId)}/`;
+    }
+
+    async function fetchJSON(url, signal = null) {
+      const response = await fetch(url, { method: "GET", signal });
+
+      if (response.status === 404) {
+        throw new Error("No encontré información para esa búsqueda.");
+      }
+
+      if (response.status === 429) {
+        throw new Error("TVmaze recibió demasiadas consultas. Espera unos segundos y vuelve a intentar.");
+      }
+
+      if (!response.ok) {
+        throw new Error(`Error de conexión: ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    async function safeFetchArray(url) {
+      try {
+        const value = await fetchJSON(url);
+        return Array.isArray(value) ? value : [];
+      } catch (error) {
+        console.warn("Consulta opcional fallida:", url, error);
+        return [];
+      }
+    }
+
+    function getShowImage(show) {
+      return show?.image?.medium || show?.image?.original || "";
+    }
+
+    function getBestImage(show) {
+      const direct = show?.image?.original || show?.image?.medium;
+      if (direct) return direct;
+
+      const images = imageCache.get(show.id) || [];
+      const poster = images.find(img => img.type === "poster" && img.resolutions?.original?.url);
+      const background = images.find(img => img.resolutions?.original?.url);
+
+      return poster?.resolutions?.original?.url || background?.resolutions?.original?.url || "";
+    }
+
+    function parseEpisodeDate(episode) {
+      if (!episode) return null;
+
+      if (episode.airstamp) {
+        const date = new Date(episode.airstamp);
+        return isNaN(date) ? null : date;
+      }
+
+      if (episode.airdate) {
+        return parseLocalDateTime(episode.airdate, episode.airtime || "00:00");
+      }
+
+      return null;
+    }
+
+    function parseSeasonPremiereDate(season, show) {
+      if (!season?.premiereDate) return null;
+      const showTime = show?.schedule?.time || "00:00";
+      return parseLocalDateTime(season.premiereDate, showTime);
+    }
+
+    function parseLocalDateTime(dateString, timeString = "00:00") {
+      const dateMatch = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const timeMatch = String(timeString || "00:00").match(/^(\d{2}):(\d{2})$/);
+
+      if (!dateMatch) return null;
+
+      const year = Number(dateMatch[1]);
+      const month = Number(dateMatch[2]) - 1;
+      const day = Number(dateMatch[3]);
+      const hour = timeMatch ? Number(timeMatch[1]) : 0;
+      const minute = timeMatch ? Number(timeMatch[2]) : 0;
+
+      const date = new Date(year, month, day, hour, minute, 0);
+      return isNaN(date) ? null : date;
+    }
+
+    function startOfToday() {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    }
+
+    function startCountdown(targetDate, exactTime = false) {
+      clearTimer();
+
+      if (!targetDate || isNaN(targetDate)) return;
+
+      const countdownEl = document.querySelector("#countdown");
+      if (!countdownEl) return;
+
+      const tick = () => {
+        countdownEl.innerHTML = countdownHTML(targetDate, exactTime);
+      };
+
+      tick();
+      countdownTimer = setInterval(tick, 1000);
+    }
+
+    function countdownHTML(targetDate) {
+      if (!targetDate || isNaN(targetDate)) {
+        return `<div class="notice">No hay fecha suficiente para calcular la cuenta regresiva.</div>`;
+      }
+
+      const total = targetDate - new Date();
+
+      if (total <= 0) {
+        return `
+          <div class="time-card"><strong>0</strong><span>Días</span></div>
+          <div class="time-card"><strong>0</strong><span>Horas</span></div>
+          <div class="time-card"><strong>0</strong><span>Min</span></div>
+          <div class="time-card"><strong>0</strong><span>Seg</span></div>
+        `;
+      }
+
+      const seconds = Math.floor(total / 1000);
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+
+      return `
+        <div class="time-card"><strong>${days}</strong><span>Días</span></div>
+        <div class="time-card"><strong>${hours}</strong><span>Horas</span></div>
+        <div class="time-card"><strong>${minutes}</strong><span>Min</span></div>
+        <div class="time-card"><strong>${secs}</strong><span>Seg</span></div>
+      `;
+    }
+
+    async function translateVisibleTextInBackground(version) {
+      const nodes = [...document.querySelectorAll(".translatable")];
+
+      for (const node of nodes) {
+        if (version !== requestVersion) return;
+
+        const original = node.dataset.original || node.textContent || "";
+        const note = node.nextElementSibling?.matches("[data-translation-note]")
+          ? node.nextElementSibling
+          : null;
+
+        if (!original.trim()) {
+          if (note) note.textContent = "";
+          continue;
+        }
+
+        const translated = await translateToSpanishSafely(original);
+
+        if (version !== requestVersion) return;
+
+        if (translated.ok && translated.text && translated.text !== original) {
+          node.textContent = translated.text;
+          if (note) note.textContent = "Traducción automática al español.";
+        } else {
+          if (note) note.textContent = translated.reason || "";
+        }
+      }
+    }
+
+    async function translateToSpanishSafely(text) {
+      const clean = String(text || "").replace(/\s+/g, " ").trim();
+
+      if (!clean) return { ok: false, text: "", reason: "" };
+
+      if (looksSpanish(clean)) {
+        return { ok: false, text: clean, reason: "" };
+      }
+
+      const cacheKey = clean.toLowerCase();
+      if (translationCache.has(cacheKey)) {
+        return translationCache.get(cacheKey);
+      }
+
+      const chunks = splitForTranslation(clean, 420);
+
+      try {
+        const translatedChunks = [];
+
+        for (const chunk of chunks) {
+          translatedChunks.push(await translateChunkWithMyMemory(chunk));
+        }
+
+        const resultText = translatedChunks.join(" ").replace(/\s+/g, " ").trim();
+        const result = resultText
+          ? { ok: true, text: resultText, reason: "" }
+          : { ok: false, text: clean, reason: "No se pudo traducir automáticamente; se muestra el texto original." };
+
+        translationCache.set(cacheKey, result);
+        return result;
+      } catch (firstError) {
+        console.warn("MyMemory falló; intentando respaldo.", firstError);
+
+        try {
+          const translatedChunks = [];
+
+          for (const chunk of chunks) {
+            translatedChunks.push(await translateChunkWithGooglePublic(chunk));
+          }
+
+          const resultText = translatedChunks.join(" ").replace(/\s+/g, " ").trim();
+          const result = resultText
+            ? { ok: true, text: resultText, reason: "" }
+            : { ok: false, text: clean, reason: "No se pudo traducir automáticamente; se muestra el texto original." };
+
+          translationCache.set(cacheKey, result);
+          return result;
+        } catch (secondError) {
+          console.warn("También falló el respaldo de traducción.", secondError);
+          const result = {
+            ok: false,
+            text: clean,
+            reason: "No se pudo traducir automáticamente; se muestra el texto original."
+          };
+          translationCache.set(cacheKey, result);
+          return result;
+        }
+      }
+    }
+
+    async function translateChunkWithMyMemory(chunk) {
+      const url = `${MYMEMORY_API}?q=${encodeURIComponent(chunk)}&langpair=en|es`;
+      const data = await fetchJSON(url);
+      const translated = data?.responseData?.translatedText;
+
+      if (!translated || /MYMEMORY WARNING/i.test(translated)) {
+        throw new Error("MyMemory no devolvió traducción usable.");
+      }
+
+      return decodeHTML(translated);
+    }
+
+    async function translateChunkWithGooglePublic(chunk) {
+      const url = `${GOOGLE_TRANSLATE_API}?client=gtx&sl=en&tl=es&dt=t&q=${encodeURIComponent(chunk)}`;
+      const data = await fetchJSON(url);
+      const translated = Array.isArray(data?.[0])
+        ? data[0].map(part => part?.[0] || "").join("")
+        : "";
+
+      if (!translated) {
+        throw new Error("El respaldo no devolvió traducción.");
+      }
+
+      return translated;
+    }
+
+    function splitForTranslation(text, maxLength) {
+      const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
+      const chunks = [];
+      let current = "";
+
+      for (const sentence of sentences) {
+        const trimmed = sentence.trim();
+        if (!trimmed) continue;
+
+        if ((current + " " + trimmed).trim().length <= maxLength) {
+          current = (current + " " + trimmed).trim();
+        } else {
+          if (current) chunks.push(current);
+
+          if (trimmed.length <= maxLength) {
+            current = trimmed;
+          } else {
+            for (let i = 0; i < trimmed.length; i += maxLength) {
+              chunks.push(trimmed.slice(i, i + maxLength));
+            }
+            current = "";
+          }
+        }
+      }
+
+      if (current) chunks.push(current);
+      return chunks;
+    }
+
+    function looksSpanish(text) {
+      return /[áéíóúüñ¿¡]/i.test(text) ||
+        /\b(el|la|los|las|un|una|unos|unas|que|para|con|por|como|pero|cuando|donde|temporada|episodio)\b/i.test(text);
+    }
+
+    function decodeHTML(value = "") {
+      const temp = document.createElement("textarea");
+      temp.innerHTML = value;
+      return temp.value;
+    }
+
+    function getScheduleText(show) {
+      const days = show.schedule?.days || [];
+      const time = show.schedule?.time;
+      const translatedDays = days.map(day => DAY_ES[day] || day);
+
+      if (!translatedDays.length && !time) return "No disponible";
+      if (!translatedDays.length) return time;
+      return `${translatedDays.join(", ")}${time ? ` a las ${time}` : ""}`;
+    }
+
+    function formatDate(date) {
+      return new Intl.DateTimeFormat("es-MX", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: MEXICO_TIME_ZONE
+      }).format(date);
+    }
+
+    function formatTime(date) {
+      return new Intl.DateTimeFormat("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+        timeZone: MEXICO_TIME_ZONE
+      }).format(date);
+    }
+
+    function translateStatus(status = "") {
+      return STATUS_ES[status] || status || "Estado desconocido";
+    }
+
+    function translateType(type = "") {
+      return TYPE_ES[type] || type || "Tipo no disponible";
+    }
+
+    function translateGenre(genre = "") {
+      return GENRE_ES[genre] || genre;
+    }
+
+    function translateLanguage(language = "") {
+      return LANGUAGE_ES[language] || language || "Idioma no disponible";
+    }
+
+    function translateCountry(country = "") {
+      return COUNTRY_ES[country] || country || "No disponible";
+    }
+
+    function statusToClass(status = "") {
+      const normalized = status.toLowerCase();
+      if (normalized.includes("running")) return "running";
+      if (normalized.includes("ended")) return "ended";
+      return "other";
+    }
+
+    function stripHTML(value = "") {
+      const temp = document.createElement("div");
+      temp.innerHTML = value;
+      return temp.textContent || temp.innerText || "";
+    }
+
+    function escapeHTML(value = "") {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function escapeAttr(value = "") {
+      return escapeHTML(value).replace(/`/g, "&#096;");
+    }
+
+    function normalizeText(value = "") {
+      return String(value)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    }
+
+    function levenshteinDistance(a, b) {
+      a = String(a || "");
+      b = String(b || "");
+
+      const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+      for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+
+      return dp[a.length][b.length];
+    }
+
+    function daysBetween(a, b) {
+      return Math.round((b - a) / 86400000);
+    }
+
+    function addDays(date, days) {
+      const copy = new Date(date);
+      copy.setDate(copy.getDate() + Math.round(days));
+      return copy;
+    }
+
+    function median(values) {
+      const sorted = values.slice().sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+
+      if (!sorted.length) return 0;
+      if (sorted.length % 2) return sorted[middle];
+
+      return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function consistencyScore(values) {
+      if (!values.length) return 0;
+
+      const med = median(values);
+      if (!med) return 0;
+
+      const averageDeviation = values
+        .map(value => Math.abs(value - med))
+        .reduce((sum, value) => sum + value, 0) / values.length;
+
+      return Math.max(0, 1 - averageDeviation / med);
+    }
+
+    function roundToNearestWeek(date) {
+      const copy = new Date(date);
+      const day = copy.getDay();
+      const diffToNearestMonday = day === 0 ? 1 : 1 - day;
+      copy.setDate(copy.getDate() + diffToNearestMonday);
+      copy.setHours(0, 0, 0, 0);
+      return copy;
+    }
+
+    function guessNextSeasonNumber(seasons) {
+      const numbers = seasons
+        .map(season => Number(season.number))
+        .filter(number => Number.isFinite(number));
+
+      if (!numbers.length) return "siguiente";
+
+      return Math.max(...numbers) + 1;
+    }
+
+    function loadingHTML(text) {
+      return `
+        <div class="empty-state">
+          <div>
+            <strong><span class="loader"></span>${escapeHTML(text)}</strong>
+            <p>Consultando datos en línea...</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function emptyHTML(title, text) {
+      return `
+        <div class="empty-state">
+          <div>
+            <strong>${escapeHTML(title)}</strong>
+            <p>${escapeHTML(text)}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function showError(error) {
+      console.error(error);
+      clearTimer();
+      detailsEl.innerHTML = `
+        <div class="notice error">
+          <b>Algo salió mal.</b><br>
+          ${escapeHTML(error.message || "No se pudo completar la consulta.")}
+        </div>
+      `;
+      resultCountEl.textContent = "Error";
+    }
+
+    function setLoading(isLoading) {
+      searchButton.disabled = isLoading;
+      searchButton.textContent = isLoading ? "Buscando..." : "Buscar";
+    }
+
+    function clearTimer() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+  </script>
+</body>
+</html>
